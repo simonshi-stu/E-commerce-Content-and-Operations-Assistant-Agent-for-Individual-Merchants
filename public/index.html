@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A local demo for drafting platform-specific e-commerce content.">
+    <title>E-commerce Content Demo</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="intro">
+        <p class="eyebrow">LOCAL DEMO</p>
+        <h1>Draft product content with a review step</h1>
+        <p>Provide product facts, select platforms, then edit and verify every generated claim before use.</p>
+      </section>
+
+      <section class="card" aria-labelledby="draft-title">
+        <h2 id="draft-title">New draft</h2>
+        <form id="generator-form">
+          <label>
+            Product name
+            <input id="product-name" name="productName" maxlength="200" required placeholder="e.g. Insulated tumbler">
+          </label>
+          <label>
+            Product description
+            <textarea id="product-description" name="productDescription" maxlength="4000" required placeholder="List only facts you can verify."></textarea>
+          </label>
+          <label>
+            Tone
+            <input id="tone" name="tone" maxlength="120" value="clear and helpful">
+          </label>
+          <fieldset>
+            <legend>Platforms</legend>
+            <div class="platform-grid">
+              <label><input type="checkbox" name="platform" value="Xiaohongshu"> Xiaohongshu</label>
+              <label><input type="checkbox" name="platform" value="Douyin"> Douyin</label>
+              <label><input type="checkbox" name="platform" value="Tmall"> Tmall</label>
+              <label><input type="checkbox" name="platform" value="Pinduoduo"> Pinduoduo</label>
+            </div>
+          </fieldset>
+          <button id="submit-button" type="submit">Generate drafts</button>
+        </form>
+        <p id="status" class="status" aria-live="polite"></p>
+      </section>
+
+      <section id="result-section" class="card hidden" aria-labelledby="results-title">
+        <div class="section-heading">
+          <h2 id="results-title">Editable drafts</h2>
+          <button id="copy-all" class="quiet-button" type="button">Copy all drafts</button>
+        </div>
+        <div id="results"></div>
+      </section>
+
+      <section id="history-section" class="card hidden" aria-labelledby="history-title">
+        <div class="section-heading">
+          <h2 id="history-title">Recent local sessions</h2>
+          <button id="clear-history" class="quiet-button" type="button">Clear local history</button>
+        </div>
+        <p class="helper-text">Only this browser can view these saved sessions. Restoring one replaces the current form and results.</p>
+        <div id="history-list" class="history-list"></div>
+      </section>
+
+      <section class="notice" aria-label="Demo boundaries">
+        <strong>Before use:</strong> This demo does not verify product claims, prices, rights, or platform rules. It does not publish content or make business decisions for you.
+      </section>
+    </main>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

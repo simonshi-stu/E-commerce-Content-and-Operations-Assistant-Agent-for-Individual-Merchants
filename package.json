@@ -1,0 +1,12 @@
+{
+  "name": "e-commerce-content-and-operations-assistant-agent-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A local, text-only demo for drafting platform-specific e-commerce content.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}
