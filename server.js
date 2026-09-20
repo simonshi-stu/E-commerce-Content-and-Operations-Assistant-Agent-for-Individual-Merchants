@@ -7,30 +7,46 @@ const path = require('node:path');
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const MAX_BODY_BYTES = 64 * 1024;
-const PROVIDER_TIMEOUT_MS = 15_000;
+const DEFAULT_TIMEOUT_MS = 15_000;
 const MAX_TEXT_LENGTH = 4_000;
 const ALLOWED_PLATFORMS = new Set(['Xiaohongshu', 'Douyin', 'Tmall', 'Pinduoduo']);
+const PARENT_ENV = Object.freeze({ ...process.env });
+const LOCAL_DEEPSEEK_ENV = readEnvFile('.env.deepseek.local');
+const GENERIC_ENV = readEnvFile('.env');
 
-loadLocalEnv();
-
-function loadLocalEnv() {
-  const envPath = path.join(ROOT, '.env');
-  if (!fs.existsSync(envPath)) return;
+function readEnvFile(fileName) {
+  const envPath = path.join(ROOT, fileName);
+  if (!fs.existsSync(envPath)) return Object.freeze({});
+  const values = {};
   for (const line of fs.readFileSync(envPath, 'utf8').split(/\r?\n/)) {
     const match = line.match(/^\s*([A-Z][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
-    if (!match || match[2].startsWith('#') || process.env[match[1]] !== undefined) continue;
-    const raw = match[2].replace(/^(['"])(.*)\1$/, '$2');
-    process.env[match[1]] = raw;
+    if (!match || match[2].startsWith('#')) continue;
+    values[match[1]] = match[2].replace(/^(['"])(.*)\1$/, '$2');
   }
+  return Object.freeze(values);
+}
+
+function resolveConfigValue(deepseekName, legacyName, fallback = '') {
+  for (const source of [PARENT_ENV, LOCAL_DEEPSEEK_ENV, GENERIC_ENV]) {
+    if (source[deepseekName] !== undefined) return source[deepseekName];
+    if (legacyName && source[legacyName] !== undefined) return source[legacyName];
+  }
+  return fallback;
+}
+
+function parsePort(value) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 65535 ? parsed : 5178;
 }
 
 function config() {
   return {
-    provider: process.env.AI_PROVIDER || 'deepseek',
-    apiKey: process.env.AI_API_KEY || '',
-    model: process.env.AI_MODEL || 'deepseek-flash',
-    baseUrl: (process.env.AI_BASE_URL || 'https://api.deepseek.com').replace(/\/+$/, ''),
-    port: Number.parseInt(process.env.PORT || '5178', 10) || 5178
+    provider: resolveConfigValue('DEEPSEEK_PROVIDER', 'AI_PROVIDER', 'deepseek'),
+    apiKey: resolveConfigValue('DEEPSEEK_API_KEY', 'AI_API_KEY'),
+    model: resolveConfigValue('DEEPSEEK_MODEL', 'AI_MODEL', 'deepseek-flash'),
+    baseUrl: resolveConfigValue('DEEPSEEK_BASE_URL', 'AI_BASE_URL', 'https://api.deepseek.com').replace(/\/+$/, ''),
+    timeoutMs: Number.parseInt(resolveConfigValue('DEEPSEEK_TIMEOUT_MS', 'AI_TIMEOUT_MS', String(DEFAULT_TIMEOUT_MS)), 10) || DEFAULT_TIMEOUT_MS,
+    port: parsePort(resolveConfigValue('DEEPSEEK_PORT', 'PORT', '5178'))
   };
 }
 
@@ -154,10 +170,10 @@ function parseModelJson(content) {
 async function generate(input) {
   const current = config();
   if (!current.apiKey || current.apiKey === 'replace_with_your_own_key') {
-    return { status: 503, error: { code: 'provider_not_configured', message: 'Set AI_API_KEY before generating a draft.' } };
+    return { status: 503, error: { code: 'provider_not_configured', message: 'Set DEEPSEEK_API_KEY or AI_API_KEY before generating a draft.' } };
   }
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), current.timeoutMs);
   try {
     const response = await fetch(`${current.baseUrl}/chat/completions`, {
       method: 'POST',
@@ -171,7 +187,13 @@ async function generate(input) {
     }
     const payload = await response.json().catch(() => null);
     const content = payload && payload.choices && payload.choices[0] && payload.choices[0].message && payload.choices[0].message.content;
-    return { status: 200, body: { data: parseModelJson(content), meta: { provider: current.provider, model: current.model } } };
+    let data;
+    try {
+      data = parseModelJson(content);
+    } catch {
+      return { status: 502, error: { code: 'invalid_model_output', message: 'The model provider returned an unexpected format. Try again or use a different model.' } };
+    }
+    return { status: 200, body: { data, meta: { provider: current.provider, model: current.model } } };
   } catch (error) {
     const message = error && error.name === 'AbortError' ? 'The model provider timed out.' : 'The model provider could not be reached.';
     return { status: 502, error: { code: 'provider_unavailable', message } };
@@ -202,5 +224,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(config().port, '127.0.0.1', () => {
-  console.log(`Local demo listening on http://127.0.0.1:${config().port}`);
+  const address = server.address();
+  const boundPort = address && typeof address === 'object' ? address.port : config().port;
+  console.log(`Local demo listening on http://127.0.0.1:${boundPort}`);
 });
