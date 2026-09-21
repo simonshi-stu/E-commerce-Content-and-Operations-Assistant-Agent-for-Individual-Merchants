@@ -6,10 +6,12 @@ const { describe, it } = require('node:test');
 const { MAX_IMAGE_BYTES, detectImageMime, validateInput } = require('../lib/validate');
 const { extractJson, normalizeDrafts } = require('../lib/normalize');
 const { buildReview, buildMissingInfo, complianceReminders, factCheck, scanRiskyClaims } = require('../lib/review');
-const { buildMessages, SYSTEM_PROMPTS } = require('../lib/prompt');
+const { buildIntelMessages, buildMessages, CREDIBILITY_PROMPT_BLOCK, SYSTEM_PROMPTS } = require('../lib/prompt');
 const { parsePort, parseTimeout, resolveConfigValue } = require('../lib/env');
 const { normalizeLocale, reviewMessages, uiMessage } = require('../lib/messages');
 const { compareCompetitors, priceStats, scoreProduct } = require('../lib/intel');
+const { aggregateCredibility, assessmentConfidence, entryCredibility } = require('../lib/credibility');
+const { normalizeIntelReview } = require('../lib/normalize');
 
 const TINY_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 const BASE_INPUT = {
@@ -367,6 +369,8 @@ describe('price analysis', () => {
     assert.equal(result.costs.breakEvenPrice, 44.44);
     assert.equal(result.costs.suggestedPrice, 61.54);
     assert.equal(result.costs.feasible, true);
+    assert.ok(['high', 'medium', 'low'].includes(result.confidence.level));
+    assert.ok(result.dataCredibility.score > 0);
   });
 
   it('marks impossible fee and margin targets as infeasible', () => {
@@ -383,5 +387,156 @@ describe('price analysis', () => {
   it('requires at least one valid price point', () => {
     assert.ok(priceStats({ points: [] }, 'zh').error);
     assert.ok(priceStats({ points: [{ price: 0 }] }, 'en').error);
+  });
+});
+
+describe('credibility scoring', () => {
+  const NOW = Date.parse('2026-09-21T00:00:00.000Z');
+
+  it('scores a fresh official source as high', () => {
+    const credibility = entryCredibility({
+      price: 100,
+      sourceType: 'official_store',
+      sourceNote: 'https://example.com/item/1',
+      observedAt: '2026-09-20'
+    }, NOW);
+    assert.equal(credibility.score, 98);
+    assert.equal(credibility.level, 'high');
+    assert.deepEqual(credibility.reasons, []);
+  });
+
+  it('caps unknown or stale sources below high', () => {
+    const unknown = entryCredibility({ price: 100 }, NOW);
+    assert.equal(unknown.sourceType, 'unknown');
+    assert.equal(unknown.score, 40);
+    assert.equal(unknown.level, 'low');
+    assert.ok(unknown.reasons.includes('unknown_source'));
+    assert.ok(unknown.reasons.includes('missing_date'));
+
+    const stale = entryCredibility({
+      price: 100,
+      sourceType: 'official_store',
+      sourceNote: 'saved copy',
+      observedAt: '2026-03-05'
+    }, NOW);
+    assert.equal(stale.score, 60);
+    assert.equal(stale.level, 'medium');
+    assert.ok(stale.reasons.includes('stale_180d'));
+  });
+
+  it('aggregates entries with agreement and sample reasons', () => {
+    const aggregate = aggregateCredibility([
+      { price: 100, sourceType: 'official_store', sourceNote: 'page', observedAt: '2026-09-20' },
+      { price: 200 }
+    ], NOW);
+    assert.equal(aggregate.sampleCount, 2);
+    assert.equal(aggregate.score, 55);
+    assert.equal(aggregate.level, 'medium');
+    assert.equal(aggregate.agreement, 0.33);
+    assert.ok(aggregate.reasons.includes('unknown_source'));
+    assert.ok(aggregate.reasons.includes('missing_date'));
+    assert.ok(aggregate.reasons.includes('small_sample'));
+
+    const empty = aggregateCredibility([], NOW);
+    assert.deepEqual(empty.reasons, ['no_data']);
+  });
+
+  it('derives assessment confidence from basis, date, and sample size', () => {
+    const verified = assessmentConfidence({ dataBasis: 'verified', observedAt: '2026-09-20', now: NOW });
+    assert.equal(verified.score, 100);
+    assert.equal(verified.level, 'high');
+
+    const estimated = assessmentConfidence({ dataBasis: 'estimated', now: NOW });
+    assert.equal(estimated.level, 'medium');
+    assert.ok(estimated.reasons.includes('estimated_inputs'));
+    assert.ok(estimated.reasons.includes('missing_date'));
+
+    const guess = assessmentConfidence({ dataBasis: 'guess', now: NOW });
+    assert.equal(guess.level, 'low');
+    assert.ok(guess.reasons.includes('unverified_inputs'));
+
+    const aggregate = aggregateCredibility([
+      { price: 100, sourceType: 'official_store', sourceNote: 'page', observedAt: '2026-09-20' },
+      { price: 200 }
+    ], NOW);
+    const confidence = assessmentConfidence({ aggregate });
+    assert.equal(confidence.score, 50);
+    assert.equal(confidence.level, 'medium');
+  });
+});
+
+describe('intel credibility integration', () => {
+  it('attaches confidence to product scores', () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const { result } = scoreProduct({
+      name: 'Tumbler',
+      price: 100,
+      unitCost: 30,
+      targetMarginRate: 20,
+      dataBasis: 'verified',
+      observedAt: today
+    }, 'en');
+    assert.equal(result.dataBasis, 'verified');
+    assert.equal(result.confidence.score, 100);
+    assert.equal(result.confidence.level, 'high');
+  });
+
+  it('adds per-entry credibility, ranking, and aggregate credibility to comparisons', () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const { result } = compareCompetitors({
+      productName: 'Tumbler',
+      price: 80,
+      sellingPoints: ['heat retention'],
+      competitors: [
+        { platform: 'Tmall', title: 'A', price: 100, sellingPoints: ['gift box'], sourceType: 'official_store', sourceNote: 'page', observedAt: today },
+        { platform: 'Douyin', title: 'B', price: 140, sellingPoints: ['leak proof'], sourceType: 'unknown' }
+      ]
+    }, 'en');
+    assert.equal(result.ranking.length, 2);
+    assert.equal(result.ranking[0].platform, 'Tmall');
+    assert.ok(result.ranking[0].credibility.score > result.ranking[1].credibility.score);
+    assert.equal(result.dataCredibility.sampleCount, 2);
+    assert.ok(result.dataCredibility.reasons.includes('unknown_source'));
+    assert.ok(result.confidence.score > 0);
+  });
+
+  it('attaches credibility to every price point', () => {
+    const { result } = priceStats({
+      points: [
+        { label: 'mine', price: 90, type: 'own', sourceType: 'merchant_record', sourceNote: 'order log', observedAt: new Date().toISOString().slice(0, 10) },
+        { label: 'a', price: 120 }
+      ]
+    }, 'en');
+    assert.equal(result.points[0].credibility.sourceType, 'merchant_record');
+    assert.equal(result.points[1].credibility.sourceType, 'unknown');
+    assert.ok(result.points[0].credibility.score > result.points[1].credibility.score);
+  });
+});
+
+describe('intel review normalization and prompt contract', () => {
+  it('normalizes a model review and clamps the confidence score', () => {
+    const review = normalizeIntelReview({
+      summary: 'Data looks thin.',
+      confidence: { score: 180, reasons: ['small_sample', 42] },
+      caveats: ['Only one source'],
+      recommendations: ['Add an official page']
+    });
+    assert.equal(review.confidence.score, 100);
+    assert.equal(review.confidence.level, 'high');
+    assert.deepEqual(review.confidence.reasons, ['small_sample']);
+    assert.deepEqual(review.caveats, ['Only one source']);
+    assert.throws(() => normalizeIntelReview({ confidence: { score: 50 } }));
+  });
+
+  it('exposes the credibility contract in prompts for API calls', () => {
+    assert.match(CREDIBILITY_PROMPT_BLOCK, /Source credibility contract/);
+    assert.match(CREDIBILITY_PROMPT_BLOCK, /official_store/);
+    const messages = buildIntelMessages({ locale: 'en', kind: 'compare', result: { stats: { count: 1 } } });
+    assert.match(messages[0].content, /Source credibility contract/);
+    assert.match(messages[0].content, /confidence\.score/);
+    assert.equal(messages[1].role, 'user');
+
+    const zhMessages = buildIntelMessages({ locale: 'zh', kind: 'compare', result: {} });
+    assert.match(zhMessages[0].content, /数据可信度契约/);
   });
 });

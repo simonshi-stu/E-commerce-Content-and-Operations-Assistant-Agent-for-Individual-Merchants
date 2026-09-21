@@ -163,6 +163,13 @@ const PARTIAL_DRAFTS = {
   drafts: [{ platform: 'Xiaohongshu', title: '标题', body: '正文', reviewNotes: [] }]
 };
 
+const INTEL_REVIEW = {
+  summary: '样本只有一条，建议补充官方来源。',
+  confidence: { score: 68, level: 'medium', reasons: ['small_sample', 'unknown_source'] },
+  caveats: ['样本只有 1 条'],
+  recommendations: ['补充官方店铺页面']
+};
+
 describe('E-commerce demo server', () => {
   const sandbox = prepareSandbox();
   let mock;
@@ -192,6 +199,10 @@ describe('E-commerce demo server', () => {
       const generate = await postJson(baseUrl, '/api/generate', VALID_INPUT);
       assert.equal(generate.status, 503);
       assert.equal(generate.json.error.code, 'provider_not_configured');
+
+      const interpret = await postJson(baseUrl, '/api/intel/interpret', { kind: 'compare', result: { stats: { count: 0 } } });
+      assert.equal(interpret.status, 503);
+      assert.equal(interpret.json.error.code, 'provider_not_configured');
     } finally {
       await app.stop();
     }
@@ -219,6 +230,10 @@ describe('E-commerce demo server', () => {
         if (providerMode === 'partial') {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           return res.end(completion(JSON.stringify(PARTIAL_DRAFTS)));
+        }
+        if (providerMode === 'intel-review') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(completion(JSON.stringify(INTEL_REVIEW)));
         }
         if (providerMode === 'fenced') {
           res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -541,14 +556,30 @@ describe('E-commerce demo server', () => {
         productName: 'Tumbler',
         price: 80,
         sellingPoints: ['heat retention'],
-        competitors: [{ platform: 'Tmall', title: 'A', price: 100, sellingPoints: ['gift box'] }]
+        competitors: [{
+          platform: 'Tmall',
+          title: 'A',
+          price: 100,
+          sellingPoints: ['gift box'],
+          sourceType: 'official_store',
+          sourceNote: 'https://example.com/item/1',
+          observedAt: new Date().toISOString().slice(0, 10)
+        }]
       });
       assert.equal(compare.status, 200);
       assert.equal(compare.json.data.stats.count, 1);
       assert.ok(compare.json.data.gaps.some((gap) => gap.keyword === 'gift box'));
+      assert.equal(compare.json.data.ranking.length, 1);
+      assert.equal(compare.json.data.ranking[0].credibility.sourceType, 'official_store');
+      assert.ok(compare.json.data.dataCredibility.score > 0);
+      assert.ok(['high', 'medium', 'low'].includes(compare.json.data.confidence.level));
+      assert.ok(compare.json.data.dataCredibility.reasons.includes('single_source'));
 
       const prices = await postJson(baseUrl, '/api/intel/prices', {
-        points: [{ label: 'mine', price: 90, type: 'own' }, { label: 'a', price: 120 }],
+        points: [
+          { label: 'mine', price: 90, type: 'own', sourceType: 'merchant_record', sourceNote: 'order log', observedAt: new Date().toISOString().slice(0, 10) },
+          { label: 'a', price: 120, sourceType: 'unknown' }
+        ],
         unitCost: 30,
         platformFeeRate: 10,
         targetMarginRate: 25
@@ -556,6 +587,37 @@ describe('E-commerce demo server', () => {
       assert.equal(prices.status, 200);
       assert.equal(prices.json.data.stats.count, 2);
       assert.equal(prices.json.data.costs.feasible, true);
+      assert.equal(prices.json.data.points[0].credibility.sourceType, 'merchant_record');
+      assert.equal(prices.json.data.points[1].credibility.sourceType, 'unknown');
+      assert.ok(prices.json.data.dataCredibility.reasons.includes('unknown_source'));
+    });
+
+    it('reviews intel data with the model using the credibility contract', async () => {
+      setMode('intel-review');
+      const result = await postJson(baseUrl, '/api/intel/interpret', {
+        kind: 'compare',
+        locale: 'en',
+        result: { stats: { count: 1 }, dataCredibility: { score: 62, level: 'medium', sampleCount: 1 } }
+      });
+      assert.equal(result.status, 200);
+      assert.equal(result.json.data.confidence.score, 68);
+      assert.equal(result.json.data.confidence.level, 'medium');
+      assert.deepEqual(result.json.data.caveats, ['样本只有 1 条']);
+      assert.equal(result.json.meta.model, 'deepseek-flash');
+      assert.equal(result.json.meta.locale, 'en');
+      const sent = JSON.parse(lastProviderRequest.body);
+      assert.match(sent.messages[0].content, /Source credibility contract/);
+      assert.equal(sent.messages[0].role, 'system');
+      assert.equal(sent.response_format.type, 'json_object');
+    });
+
+    it('validates intel review requests', async () => {
+      setMode('intel-review');
+      const missing = await postJson(baseUrl, '/api/intel/interpret', { result: {} });
+      assert.equal(missing.status, 400);
+      assert.equal(missing.json.error.code, 'validation');
+      const badJson = await postJson(baseUrl, '/api/intel/interpret', '{not json');
+      assert.equal(badJson.status, 400);
     });
 
     it('validates intel requests and localizes the errors', async () => {

@@ -87,6 +87,16 @@
               <label><span data-i18n="intel.field.differentiation">差异化程度 1-5</span><input id="score-differentiation" type="number" min="1" max="5" step="1" value="3"></label>
               <label><span data-i18n="intel.field.risk">风险水平 1-5</span><input id="score-risk" type="number" min="1" max="5" step="1" value="3"></label>
             </div>
+            <div class="field-grid">
+              <label><span data-i18n="intel.field.basis">数据依据</span>
+                <select id="score-basis">
+                  <option value="verified" data-i18n="intel.basis.verified">已验证（实测/官方）</option>
+                  <option value="estimated" selected data-i18n="intel.basis.estimated">估算</option>
+                  <option value="guess" data-i18n="intel.basis.guess">粗略猜测</option>
+                </select>
+              </label>
+              <label><span data-i18n="intel.field.observedAt">采集日期</span><input id="score-observed" type="date"></label>
+            </div>
             <div class="button-row">
               <button type="submit" class="primary-button"><span class="button-label" data-i18n="intel.score.submit">计算评分</span></button>
             </div>

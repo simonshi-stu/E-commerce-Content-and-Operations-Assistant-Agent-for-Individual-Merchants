@@ -6,9 +6,9 @@ const path = require('node:path');
 
 const { loadConfig } = require('./lib/env');
 const { compareCompetitors, priceStats, scoreProduct } = require('./lib/intel');
-const { normalizeLocale } = require('./lib/messages');
+const { normalizeLocale, uiMessage } = require('./lib/messages');
 const { MAX_BODY_BYTES, validateInput } = require('./lib/validate');
-const { generateContent } = require('./lib/provider');
+const { generateContent, interpretIntel } = require('./lib/provider');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -133,7 +133,15 @@ async function handleRequest(req, res) {
       if (url.pathname === '/api/intel/score') outcome = scoreProduct(body || {}, locale);
       else if (url.pathname === '/api/intel/compare') outcome = compareCompetitors(body || {}, locale);
       else if (url.pathname === '/api/intel/prices') outcome = priceStats(body || {}, locale);
-      else return sendError(res, 404, 'not_found', 'Not found.');
+      else if (url.pathname === '/api/intel/interpret') {
+        if (!body || typeof body.kind !== 'string' || !body.result || typeof body.result !== 'object') {
+          return sendError(res, 400, 'validation', uiMessage(locale, 'intel.interpret.required'));
+        }
+        const interpreted = await interpretIntel(body, { root: ROOT });
+        return interpreted.error
+          ? sendError(res, interpreted.status, interpreted.error.code, interpreted.error.message)
+          : sendJson(res, interpreted.status, interpreted.body);
+      } else return sendError(res, 404, 'not_found', 'Not found.');
       if (outcome.error) return sendError(res, 400, 'validation', outcome.error);
       return sendJson(res, 200, { data: outcome.result });
     } catch (error) {
