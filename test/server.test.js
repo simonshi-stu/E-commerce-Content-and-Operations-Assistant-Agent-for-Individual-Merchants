@@ -547,6 +547,7 @@ describe('E-commerce demo server', () => {
       assert.match(intel.text, /id="pricing-form"/);
       assert.match(intel.text, /id="fx-status"/);
       assert.match(intel.text, /id="batch-run"/);
+      assert.match(intel.text, /id="market-run"/);
 
       const script = await request(`${baseUrl}/intel.js`);
       assert.equal(script.status, 200);
@@ -672,6 +673,19 @@ describe('E-commerce demo server', () => {
       const empty = await postJson(baseUrl, '/api/intel/batch', { text: '' });
       assert.equal(empty.status, 400);
       assert.equal(empty.json.error.code, 'validation');
+    });
+
+    it('analyses pasted public market records', async () => {
+      const result = await postJson(baseUrl, '/api/intel/market', {
+        text: 'keyword,position,title,brand,price,rating,reviews,bought,badge,note\nbike helmet,1,Adult Bike Helmet with MIPS,BrandA,39.99,4.6,12453,10K+ bought in past month,Amazon\'s Choice,commuter'
+      });
+      assert.equal(result.status, 200);
+      assert.equal(result.json.data.sample, 1);
+      assert.ok(['high', 'medium', 'low'].includes(result.json.data.entry.level));
+      assert.equal(result.json.data.demand.monthlyUnitsFloor, 10000);
+
+      const empty = await postJson(baseUrl, '/api/intel/market', { text: '' });
+      assert.equal(empty.status, 400);
     });
 
     it('serves exchange rates from the configured provider', async () => {

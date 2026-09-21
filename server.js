@@ -9,6 +9,7 @@ const { assessCandidates, parseCandidateText } = require('./lib/candidates');
 const { parsePriceCsv } = require('./lib/csv');
 const { createFxService } = require('./lib/fx');
 const { compareCompetitors, priceStats, scoreProduct } = require('./lib/intel');
+const { analyzeMarket, parseMarketRows } = require('./lib/market');
 const { buildPricing } = require('./lib/pricing');
 const { normalizeLocale, uiMessage } = require('./lib/messages');
 const { MAX_BODY_BYTES, validateInput } = require('./lib/validate');
@@ -155,6 +156,11 @@ async function handleRequest(req, res) {
           observedAt: body && body.observedAt
         });
         return sendJson(res, 200, { data: assessed.result });
+      }
+      else if (url.pathname === '/api/intel/market') {
+        const parsed = parseMarketRows(body && body.text, locale);
+        if (parsed.error) return sendError(res, 400, 'validation', parsed.error);
+        return sendJson(res, 200, { data: analyzeMarket(parsed.rows, { locale }).result });
       }
       else if (url.pathname === '/api/intel/interpret') {
         if (!body || typeof body.kind !== 'string' || !body.result || typeof body.result !== 'object') {

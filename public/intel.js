@@ -51,6 +51,10 @@
   const batchRun = document.querySelector('#batch-run');
   const batchStatus = document.querySelector('#batch-status');
   const batchResultEl = document.querySelector('#batch-result');
+  const marketText = document.querySelector('#market-text');
+  const marketRun = document.querySelector('#market-run');
+  const marketStatus = document.querySelector('#market-status');
+  const marketResultEl = document.querySelector('#market-result');
 
   let locale = i18n.detect();
   let currentHealth = null;
@@ -59,9 +63,10 @@
   let pricesResult = null;
   let pricingResult = null;
   let batchResult = null;
+  let marketResult = null;
   let fxData = null;
-  const aiResults = { score: null, compare: null, prices: null, batch: null };
-  const aiErrors = { score: '', compare: '', prices: '', batch: '' };
+  const aiResults = { score: null, compare: null, prices: null, batch: null, market: null };
+  const aiErrors = { score: '', compare: '', prices: '', batch: '', market: '' };
   let aiBusy = '';
 
   function t(key, params) {
@@ -285,6 +290,7 @@
     renderTemplates();
     renderPricingResult();
     renderBatchResult();
+    renderMarketResult();
     updateFxStatus();
     updateHealthText();
   }
@@ -778,7 +784,8 @@
     const result = kind === 'score' ? scoreResult
       : kind === 'compare' ? compareResult
         : kind === 'batch' ? batchResult
-          : pricesResult;
+          : kind === 'market' ? marketResult
+            : pricesResult;
     if (!result || aiBusy) return;
     aiBusy = kind;
     aiErrors[kind] = '';
@@ -798,6 +805,7 @@
     if (kind === 'score') renderScoreResult();
     else if (kind === 'compare') renderCompareResult();
     else if (kind === 'batch') renderBatchResult();
+    else if (kind === 'market') renderMarketResult();
     else renderPricesResult();
   }
 
@@ -1152,6 +1160,110 @@
     batchResultEl.append(chips, table, aiBlock('batch'));
   }
 
+  /* ---------- Market recon ---------- */
+
+  async function runMarket() {
+    const text = valueOf('#market-text');
+    if (!text) {
+      setStatus(marketStatus, t('intel.market.empty'), true);
+      return;
+    }
+    setStatus(marketStatus, t('intel.status.calculating'));
+    try {
+      marketResult = await postIntel('/api/intel/market', { text });
+      aiResults.market = null;
+      aiErrors.market = '';
+      renderMarketResult();
+      setStatus(marketStatus, '');
+    } catch (error) {
+      marketResult = null;
+      renderMarketResult();
+      setStatus(marketStatus, error && error.message ? error.message : t('intel.error.calculate'), true);
+    }
+  }
+
+  function renderMarketResult() {
+    marketResultEl.replaceChildren();
+    if (!marketResult) return;
+    const result = marketResult;
+
+    const chips = el('div', 'review-summary');
+    chips.append(
+      el('span', 'summary-chip', { text: `${t('intel.market.sample')}: ${result.sample}` }),
+      el('span', `cred-badge ${result.entry.level}`, {
+        text: `${t('intel.market.entry')}: ${t(`intel.market.entry.${result.entry.level}`)} (${result.entry.score}/100)`
+      }),
+      el('span', 'summary-chip', { text: `${t('intel.market.brands')}: ${fmt(result.brands.topThreeShare)}%` })
+    );
+
+    const metrics = metricGrid([
+      [t('intel.market.medianReviews'), String(result.reviews.median)],
+      [t('intel.market.top10Reviews'), String(result.reviews.top10Median)],
+      [t('intel.market.demand'), `${result.demand.listingsWithSignal} / ${result.sample}`],
+      [t('intel.market.demandFloor'), fmt(result.demand.monthlyUnitsFloor, 0)],
+      [t('intel.market.spread'), fmt(result.price.spread)],
+      [t('intel.stats.median'), fmt(result.price.median)]
+    ]);
+
+    const components = el('div', 'review-summary');
+    components.append(
+      el('span', 'summary-chip', { text: `${t('intel.market.reviewBarrier')}: ${result.entry.components.reviewBarrier}` }),
+      el('span', 'summary-chip', { text: `${t('intel.market.brandConcentration')}: ${result.entry.components.brandConcentration}` }),
+      el('span', 'summary-chip', { text: `${t('intel.market.priceSpread')}: ${result.entry.components.priceSpread}` }),
+      el('span', 'summary-chip', { text: `${t('intel.market.ratingBarrier')}: ${result.entry.components.ratingBarrier}` })
+    );
+
+    const bands = el('div', 'result-block');
+    bands.append(el('h4', null, { text: t('intel.market.priceBands') }));
+    bands.append(metricGrid(result.price.bands.map((band) => [
+      `${t(`intel.market.band.${band.id}`)} (${fmt(band.min)}–${fmt(band.max)})`,
+      String(band.count)
+    ])));
+
+    const brandBlock = el('div', 'result-block');
+    brandBlock.append(el('h4', null, { text: t('intel.market.brandTable') }));
+    const table = el('table', 'result-table');
+    const headRow = el('tr');
+    for (const key of ['intel.market.brand', 'intel.market.listings', 'intel.market.share', 'intel.market.avgPrice', 'intel.market.medianReviews']) {
+      headRow.append(el('th', null, { text: t(key) }));
+    }
+    const thead = el('thead');
+    thead.append(headRow);
+    table.append(thead);
+    const body = el('tbody');
+    for (const brand of result.brands.top) {
+      const tr = el('tr');
+      tr.append(
+        el('td', null, { text: brand.brand }),
+        el('td', null, { text: String(brand.listings) }),
+        el('td', null, { text: `${fmt(brand.share)}%` }),
+        el('td', null, { text: fmt(brand.averagePrice) }),
+        el('td', null, { text: String(brand.medianReviews) })
+      );
+      body.append(tr);
+    }
+    table.append(body);
+    brandBlock.append(table);
+
+    const dominant = el('div', 'result-block');
+    dominant.append(el('h4', null, { text: t('intel.market.dominant') }));
+    dominant.append(result.brands.dominantSellers.length
+      ? chipList(result.brands.dominantSellers, (brand) => `${brand.brand} (${brand.listings} · ${brand.medianReviews})`)
+      : el('p', 'empty-inline', { text: t('intel.market.noDominant') }));
+
+    const features = el('div', 'result-block');
+    features.append(el('h4', null, { text: t('intel.market.features') }));
+    features.append(result.features.length
+      ? chipList(result.features, (item) => `${item.term} (${item.share}%)`)
+      : el('p', 'empty-inline', { text: t('intel.compare.none') }));
+
+    const reasons = el('div', 'result-block');
+    reasons.append(el('h4', null, { text: t('intel.market.reasons') }));
+    reasons.append(chipList(result.entry.reasons, (code) => t(`intel.reason.${code}`)));
+
+    marketResultEl.append(chips, metrics, components, bands, brandBlock, dominant, features, reasons, aiBlock('market'));
+  }
+
   /* ---------- Scoring templates ---------- */
 
   function readTemplates() {
@@ -1303,6 +1415,7 @@
   });
 
   batchRun.addEventListener('click', runBatch);
+  marketRun.addEventListener('click', runMarket);
   pricingForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     setStatus(pricingStatus, t('intel.status.calculating'));

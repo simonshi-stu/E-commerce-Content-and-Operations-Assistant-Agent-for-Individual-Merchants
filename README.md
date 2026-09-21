@@ -14,6 +14,7 @@ A local, review-first content assistant that turns verified product facts into e
 - Supports Amazon (North America) listings alongside the domestic platforms, with English listing guidance (keyword title, five bullets, information-dense description).
 - Fetches live exchange rates from keyless public endpoints (`open.er-api.com` with a `frankfurter.app` fallback and a one-hour cache) and calculates multi-currency pricing: product cost and first-leg shipping in the cost currency, fulfillment and ad costs in the payout currency, referral fees, break-even price, suggested price, and profit at the planned price.
 - Assesses a pasted candidate list in one pass (CSV, tab-separated, or Excel copy-paste) and ranks products by verdict, margin, score, break-even price, and confidence, with optional AI review.
+- Analyses market recon records from public front ends (search results, rankings): competitor density, top-3 brand share, dominant sellers, price bands and spread, review barriers, purchase-signal floors, feature and aesthetic keywords, and an entry-difficulty score with reason codes.
 - Lists public research sources (Amazon US Best Sellers and New Releases, AMZ123 top keywords, Google Trends) for manual checks. It never scrapes platforms and never opens seller backends.
 - Scores data provenance: every competitor or price entry carries a source type, source note, and observation date; the app returns per-entry credibility, an aggregate credibility score, a competitor credibility ranking, reason codes, and a confidence score for every conclusion it gives.
 - Draws a price timeline from dated price points, with series trends, overall trend, volatility, date range, and an inline SVG chart.
@@ -133,6 +134,7 @@ Error codes: `validation`, `too_large`, `provider_not_configured`, `provider_err
 - `POST /api/intel/import` parses pasted CSV or tab-separated rows into price points with provenance; headers are optional and both English and Chinese source/type values are accepted.
 - `POST /api/intel/pricing` converts product cost and first-leg shipping from the cost currency and fulfillment/ad costs from the payout currency, then returns per-unit costs, fixed cost, break-even price, suggested price for the target margin, and profit at the planned price.
 - `POST /api/intel/batch` parses a pasted candidate list and returns a ranked assessment (verdict, margin, score, break-even, confidence) plus summary counts.
+- `POST /api/intel/market` parses pasted public front-end records (keyword, position, title, brand, price, rating, reviews, bought signal, badge, note) and returns brand distribution, dominant sellers, price bands, review and rating barriers, demand floors, feature keywords, and an entry score with reason codes.
 
 Accepted input formats for pasted data: CSV, tab-separated values, and cells copied directly from Excel. Headers are optional and support English and Chinese aliases. PDF or image lists are not parsed locally: export them as CSV, paste the text, or send product images to a configured vision model one product at a time.
 - `POST /api/intel/interpret` (requires a provider key) sends the structured result to the model with the credibility contract and returns a review with its own confidence score, caveats, and recommendations.
@@ -183,6 +185,7 @@ lib/csv.js            CSV and tab-separated price import with provenance
 lib/fx.js             keyless exchange-rate fetch, fallback provider, and cache
 lib/pricing.js        multi-currency cost conversion and pricing math
 lib/candidates.js     batch candidate parsing and ranked assessment
+lib/market.js         market recon parsing, brands, bands, barriers, entry score
 lib/credibility.js    source weights, freshness, credibility and confidence scoring
 lib/provider.js       provider call, error mapping, response assembly
 public/index.html     content studio page
@@ -203,7 +206,7 @@ The suite uses Node's built-in `node:test` runner, so there are no extra depende
 npm test
 ```
 
-The unit tests cover validation rules, image checks, output normalization, review rules, bilingual messages, prompt building, env parsing, credibility scoring, intel calculators, intel review normalization, price timelines, CSV import parsing, batch candidate assessment, exchange-rate parsing and caching, multi-currency pricing, Amazon platform guidance, and frontend script syntax. Integration tests start the real server against a mock OpenAI-compatible provider and cover configuration precedence, structured and multimodal requests, provider errors and timeouts, malformed model output, review output, English and Amazon generation, the local intelligence endpoints (including provenance, credibility, timelines, pricing, imports, and batch assessment), the exchange-rate endpoint, static file serving, directory-traversal rejection, and unsupported methods. The suite currently contains 103 tests.
+The unit tests cover validation rules, image checks, output normalization, review rules, bilingual messages, prompt building, env parsing, credibility scoring, intel calculators, intel review normalization, price timelines, CSV import parsing, batch candidate assessment, market recon analysis, exchange-rate parsing and caching, multi-currency pricing, Amazon platform guidance, and frontend script syntax. Integration tests start the real server against a mock OpenAI-compatible provider and cover configuration precedence, structured and multimodal requests, provider errors and timeouts, malformed model output, review output, English and Amazon generation, the local intelligence endpoints (including provenance, credibility, timelines, pricing, imports, batch assessment, and market recon), the exchange-rate endpoint, static file serving, directory-traversal rejection, and unsupported methods. The suite currently contains 108 tests.
 
 ## Roadmap
 

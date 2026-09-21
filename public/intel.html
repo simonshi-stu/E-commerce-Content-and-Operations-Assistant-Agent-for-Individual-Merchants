@@ -247,9 +247,22 @@
           <div id="pricing-result" class="result-area"></div>
         </section>
 
+        <section class="panel intel-panel" aria-labelledby="market-title">
+          <div class="panel-head">
+            <h2 id="market-title"><span class="panel-index">05</span><span data-i18n="intel.market.title">市场侦察（公开前台记录）</span><small data-i18n="intel.market.sub">MARKET RECON</small></h2>
+            <span class="panel-hint" data-i18n="intel.market.hint">只记录公开前台可见信息（搜索结果、榜单）：关键词,排名,标题,品牌,价格,评分,评论数,月购买量,标签,备注。不要登录后台，也不要使用爬虫。</span>
+          </div>
+          <textarea id="market-text" data-i18n-placeholder="intel.market.placeholder"></textarea>
+          <div class="button-row">
+            <button id="market-run" class="quiet-button small" type="button" data-i18n="intel.market.submit">分析市场</button>
+          </div>
+          <p class="status" id="market-status" aria-live="polite"></p>
+          <div id="market-result" class="result-area"></div>
+        </section>
+
         <section class="panel intel-panel" aria-labelledby="sources-title">
           <div class="panel-head">
-            <h2 id="sources-title"><span class="panel-index">05</span><span data-i18n="intel.sources.title">公开数据源（手动核对）</span><small data-i18n="intel.sources.sub">PUBLIC SOURCES</small></h2>
+            <h2 id="sources-title"><span class="panel-index">06</span><span data-i18n="intel.sources.title">公开数据源（手动核对）</span><small data-i18n="intel.sources.sub">PUBLIC SOURCES</small></h2>
           </div>
           <p class="helper-text" data-i18n="intel.sources.hint">本工具不抓取、不登录任何平台。销量与竞品数据请从公开榜单或你已购买的数据工具导出后，用 CSV 导入或手动录入；后台操作请使用紫鸟浏览器。</p>
           <ul class="source-list">

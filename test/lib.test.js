@@ -18,6 +18,7 @@ const { parsePriceCsv } = require('../lib/csv');
 const { createFxService, parseRates } = require('../lib/fx');
 const { buildPricing } = require('../lib/pricing');
 const { assessCandidates, parseCandidateText } = require('../lib/candidates');
+const { analyzeMarket, parseBought, parseMarketRows } = require('../lib/market');
 const { normalizeIntelReview } = require('../lib/normalize');
 
 const TINY_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -772,6 +773,56 @@ describe('candidate batch assessment', () => {
   it('requires input rows', () => {
     assert.ok(parseCandidateText('', 'en').error);
     assert.ok(parseCandidateText('   \n  ', 'zh').error);
+  });
+});
+
+describe('market recon', () => {
+  it('parses bought signals in English and Chinese', () => {
+    assert.equal(parseBought('10K+ bought in past month'), 10000);
+    assert.equal(parseBought('2M+ bought in past month'), 2000000);
+    assert.equal(parseBought('500+ bought in past month'), 500);
+    assert.equal(parseBought('过去一个月 1万+ 人购买'), 10000);
+    assert.equal(parseBought('过去一个月有 1000+ 人购买'), 1000);
+    assert.equal(parseBought(''), 0);
+  });
+
+  it('parses rows with a header and keeps provenance fields', () => {
+    const outcome = parseMarketRows('keyword,position,title,brand,price,rating,reviews,bought,badge,note\nbike helmet,1,Adult Bike Helmet with MIPS,BrandA,39.99,4.6,12453,10K+ bought in past month,Amazon\'s Choice,commuter', 'en');
+    assert.equal(outcome.rows.length, 1);
+    assert.equal(outcome.rows[0].brand, 'BrandA');
+    assert.equal(outcome.rows[0].price, 39.99);
+    assert.equal(outcome.rows[0].bought, 10000);
+    assert.equal(outcome.rows[0].reviews, 12453);
+  });
+
+  it('analyses brands, price bands, demand, features, and entry', () => {
+    const rows = [];
+    for (let index = 0; index < 6; index += 1) {
+      rows.push({ keyword: 'bike helmet', position: index + 1, title: `MIPS commuter helmet ${index}`, brand: 'BigBrand', price: 40 + index, rating: 4.6, reviews: 5000, bought: 3000, badge: '', note: '' });
+    }
+    for (let index = 0; index < 4; index += 1) {
+      rows.push({ keyword: 'bike helmet', position: index + 7, title: `Lightweight road helmet ${index}`, brand: `Small${index}`, price: 20 + index * 2, rating: 4.4, reviews: 80, bought: 200, badge: '', note: '' });
+    }
+    const { result } = analyzeMarket(rows, { locale: 'en' });
+    assert.equal(result.sample, 10);
+    assert.equal(result.brands.count, 5);
+    assert.equal(result.brands.top[0].brand, 'BigBrand');
+    assert.equal(result.brands.topThreeShare, 80);
+    assert.ok(result.brands.dominantSellers.length >= 1);
+    assert.equal(result.reviews.median, 5000);
+    assert.equal(result.demand.monthlyUnitsFloor, 18800);
+    assert.ok(result.features.some((item) => item.term === 'mips'));
+    assert.equal(result.price.bands.length, 3);
+    assert.ok(['high', 'medium', 'low'].includes(result.entry.level));
+    assert.ok(result.entry.reasons.includes('brand_dominance'));
+    assert.ok(result.entry.reasons.includes('demand_confirmed'));
+    assert.ok(result.entry.reasons.includes('review_wall'));
+    assert.ok(result.entry.reasons.includes('healthy_spread'));
+  });
+
+  it('requires rows', () => {
+    assert.ok(parseMarketRows('', 'en').error);
+    assert.ok(parseMarketRows('   ', 'zh').error);
   });
 });
 
