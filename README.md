@@ -9,6 +9,7 @@ A local, review-first content assistant that turns verified product facts into e
 - Requests structured, platform-specific drafts: title, body, tags, and selling points, plus model review notes and missing-info hints.
 - Runs a deterministic local review layer over every generation: risky-claim scan (absolute wording, medical claims, strong promises), numeric fact checks against the supplied facts, per-platform missing-info hints, and compliance reminders.
 - Lets you edit drafts, save edits to browser-local history (up to 10 sessions), restore sessions, copy one or all drafts, and export Markdown or JSON.
+- Presents a dashboard-style interface (Chinese copy, dark/light theme) with step navigation, platform cards, drag-and-drop image input, a live review panel, and summary metrics.
 - Binds to `127.0.0.1` only, never writes API keys or image data to disk, and keeps draft history in `localStorage`.
 
 ## What is not included

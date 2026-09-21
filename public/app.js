@@ -7,8 +7,15 @@
     Tmall: '天猫',
     Pinduoduo: '拼多多'
   });
+  const PLATFORM_CODES = Object.freeze({
+    Xiaohongshu: 'XIAOHONGSHU',
+    Douyin: 'DOUYIN',
+    Tmall: 'TMALL',
+    Pinduoduo: 'PINDUODUO'
+  });
   const HISTORY_KEY = 'ecommerce-content-assistant-history-v2';
   const LEGACY_HISTORY_KEY = 'ecommerce-content-demo-history-v1';
+  const THEME_KEY = 'ecommerce-content-assistant-theme';
   const ALLOWED_IMAGE_TYPES = Object.freeze(['image/png', 'image/jpeg', 'image/webp']);
   const MAX_IMAGES = 4;
   const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
@@ -18,8 +25,10 @@
   const submitButton = document.querySelector('#submit-button');
   const reviewSection = document.querySelector('#review-section');
   const reviewContent = document.querySelector('#review-content');
+  const reviewEmpty = document.querySelector('#review-empty');
   const resultSection = document.querySelector('#result-section');
   const results = document.querySelector('#results');
+  const draftSummary = document.querySelector('#draft-summary');
   const copyAll = document.querySelector('#copy-all');
   const saveEdits = document.querySelector('#save-edits');
   const downloadMarkdown = document.querySelector('#download-markdown');
@@ -29,6 +38,11 @@
   const clearHistory = document.querySelector('#clear-history');
   const imageInput = document.querySelector('#image-input');
   const imagePreview = document.querySelector('#image-preview');
+  const dropzone = document.querySelector('#dropzone');
+  const themeToggle = document.querySelector('#theme-toggle');
+  const healthChip = document.querySelector('#health-chip');
+  const healthText = document.querySelector('#health-text');
+  const stepper = document.querySelector('#stepper');
 
   let images = [];
   let currentDrafts = [];
@@ -41,6 +55,14 @@
     return PLATFORM_LABELS[platform] || platform || '未知平台';
   }
 
+  function platformCode(platform) {
+    return PLATFORM_CODES[platform] || 'PLATFORM';
+  }
+
+  function platformDotClass(platform) {
+    return `dot-${String(platform || 'unknown').toLowerCase()}`;
+  }
+
   function createId() {
     if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
     return `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -49,6 +71,14 @@
   function setStatus(message, isError = false) {
     status.textContent = message;
     status.classList.toggle('error', isError);
+  }
+
+  function setStep(active) {
+    for (const step of stepper.querySelectorAll('.step')) {
+      const value = Number(step.dataset.step);
+      step.classList.toggle('is-active', value === active);
+      step.classList.toggle('is-done', value < active);
+    }
   }
 
   function appendText(element, text) {
@@ -104,7 +134,64 @@
     for (const checkbox of form.querySelectorAll('input[name="platform"]')) {
       checkbox.checked = selected.has(checkbox.value);
     }
+    syncPlatformCards();
   }
+
+  function syncPlatformCards() {
+    for (const card of document.querySelectorAll('.platform-card')) {
+      const input = card.querySelector('input[name="platform"]');
+      card.classList.toggle('is-checked', Boolean(input && input.checked));
+    }
+  }
+
+  /* ---------- Theme ---------- */
+
+  function applyTheme(theme) {
+    const next = theme === 'light' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    themeToggle.setAttribute('aria-label', next === 'dark' ? '切换到明亮主题' : '切换到暗色主题');
+  }
+
+  function initTheme() {
+    let saved = null;
+    try {
+      saved = localStorage.getItem(THEME_KEY);
+    } catch {
+      saved = null;
+    }
+    applyTheme(saved || 'dark');
+    themeToggle.addEventListener('click', () => {
+      const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      try {
+        localStorage.setItem(THEME_KEY, next);
+      } catch {
+        // Theme preference is optional.
+      }
+    });
+  }
+
+  /* ---------- Health ---------- */
+
+  async function loadHealth() {
+    try {
+      const response = await fetch('/api/health');
+      const health = await response.json();
+      healthChip.classList.remove('is-ok', 'is-warn');
+      if (health && health.configured) {
+        const vision = health.visionConfigured ? ' · 视觉模型已配置' : '';
+        healthChip.classList.add('is-ok');
+        healthText.textContent = `模型已连接 · ${health.model}${vision}`;
+      } else {
+        healthChip.classList.add('is-warn');
+        healthText.textContent = '未配置 API Key';
+      }
+    } catch {
+      healthText.textContent = '本地服务状态未知';
+    }
+  }
+
+  /* ---------- History ---------- */
 
   function readHistory() {
     try {
@@ -165,6 +252,8 @@
   function deleteHistory(id) {
     writeHistory(readHistory().filter((item) => item.id !== id));
   }
+
+  /* ---------- Clipboard and files ---------- */
 
   async function copyText(text) {
     if (!text) throw new Error('没有可复制的内容。');
@@ -286,15 +375,32 @@
     });
   }
 
+  /* ---------- Review rendering ---------- */
+
+  function summaryChip(value, label, state = '') {
+    const chip = document.createElement('span');
+    chip.className = `summary-chip${state ? ` ${state}` : ''}`;
+    const number = document.createElement('b');
+    appendText(number, String(value));
+    const text = document.createElement('span');
+    appendText(text, label);
+    chip.append(number, text);
+    return chip;
+  }
+
   function reviewBlock(title, items, renderItem) {
     const block = document.createElement('div');
     block.className = 'review-block';
     const heading = document.createElement('h3');
     appendText(heading, title);
+    const badge = document.createElement('span');
+    badge.className = 'count-badge';
+    appendText(badge, String(items.length));
+    heading.append(badge);
     block.append(heading);
     if (!items.length) {
       const empty = document.createElement('p');
-      empty.className = 'empty-state';
+      empty.className = 'empty-inline';
       appendText(empty, '暂无。');
       block.append(empty);
       return block;
@@ -313,13 +419,28 @@
   function renderReview(review) {
     reviewContent.replaceChildren();
     if (!review) {
-      reviewSection.classList.add('hidden');
+      reviewEmpty.classList.remove('hidden');
       return;
     }
-    reviewContent.append(reviewBlock('缺失信息', Array.isArray(review.missingInfo) ? review.missingInfo : [], (entry, item) => {
+    reviewEmpty.classList.add('hidden');
+    const missing = Array.isArray(review.missingInfo) ? review.missingInfo : [];
+    const risks = Array.isArray(review.riskWarnings) ? review.riskWarnings : [];
+    const facts = Array.isArray(review.factChecks) ? review.factChecks : [];
+    const reminders = Array.isArray(review.complianceReminders) ? review.complianceReminders : [];
+
+    const summary = document.createElement('div');
+    summary.className = 'review-summary';
+    summary.append(
+      summaryChip(missing.length, '缺失', missing.length ? '' : 'is-ok'),
+      summaryChip(risks.length, '风险', risks.length ? 'is-danger' : 'is-ok'),
+      summaryChip(facts.length, '待核查', facts.length ? '' : 'is-ok')
+    );
+    reviewContent.append(summary);
+
+    reviewContent.append(reviewBlock('缺失信息', missing, (entry, item) => {
       appendText(entry, item);
     }));
-    reviewContent.append(reviewBlock('风险提示', Array.isArray(review.riskWarnings) ? review.riskWarnings : [], (entry, warning) => {
+    reviewContent.append(reviewBlock('风险用语', risks, (entry, warning) => {
       const badge = document.createElement('span');
       badge.className = `severity ${warning.severity === 'high' ? 'high' : 'medium'}`;
       appendText(badge, warning.severity === 'high' ? '高' : '中');
@@ -327,13 +448,53 @@
       appendText(text, `${platformLabel(warning.platform)} · “${warning.term}”：${warning.excerpt}（${warning.reason}）`);
       entry.append(badge, text);
     }));
-    reviewContent.append(reviewBlock('数字核查', Array.isArray(review.factChecks) ? review.factChecks : [], (entry, check) => {
-      appendText(entry, `${check.claim}：${check.note}`);
+    reviewContent.append(reviewBlock('数字核查', facts, (entry, check) => {
+      const code = document.createElement('code');
+      appendText(code, check.claim);
+      const text = document.createElement('span');
+      appendText(text, check.note);
+      entry.append(code, text);
     }));
-    reviewContent.append(reviewBlock('合规提醒', Array.isArray(review.complianceReminders) ? review.complianceReminders : [], (entry, item) => {
+    reviewContent.append(reviewBlock('合规提醒', reminders, (entry, item) => {
       appendText(entry, item);
     }));
-    reviewSection.classList.remove('hidden');
+  }
+
+  /* ---------- Draft rendering ---------- */
+
+  function draftCharCount(draft) {
+    const title = String(draft.title || '').replace(/\s/g, '');
+    const body = String(draft.body || '').replace(/\s/g, '');
+    return { title: title.length, body: body.length };
+  }
+
+  function renderDraftSummary(drafts, review) {
+    draftSummary.replaceChildren();
+    if (!drafts.length) return;
+    const characters = drafts.reduce((total, draft) => {
+      const counts = draftCharCount(draft);
+      return total + counts.title + counts.body;
+    }, 0);
+    const missing = review && Array.isArray(review.missingInfo) ? review.missingInfo.length : 0;
+    const risks = review && Array.isArray(review.riskWarnings) ? review.riskWarnings.length : 0;
+    const facts = review && Array.isArray(review.factChecks) ? review.factChecks.length : 0;
+    draftSummary.append(
+      summaryChip(drafts.length, '个平台', 'is-ok'),
+      summaryChip(characters, '字'),
+      summaryChip(risks, '风险', risks ? 'is-danger' : 'is-ok'),
+      summaryChip(facts, '待核查'),
+      summaryChip(missing, '缺失提示')
+    );
+  }
+
+  function updateDraftMeta(article) {
+    const meta = article.querySelector('.draft-meta');
+    if (!meta) return;
+    const counts = draftCharCount({
+      title: article.querySelector('.draft-title').value,
+      body: article.querySelector('.draft-body').value
+    });
+    appendText(meta, `标题 ${counts.title} 字 · 正文 ${counts.body} 字`);
   }
 
   function renderDrafts(drafts) {
@@ -343,9 +504,40 @@
       const article = document.createElement('article');
       article.className = 'draft';
       article.dataset.platform = draft.platform || 'Unknown';
-      const heading = document.createElement('h3');
-      appendText(heading, platformLabel(draft.platform));
 
+      const head = document.createElement('header');
+      head.className = 'draft-head';
+      const badge = document.createElement('span');
+      badge.className = 'platform-badge';
+      const dot = document.createElement('span');
+      dot.className = `platform-dot ${platformDotClass(draft.platform)}`;
+      dot.setAttribute('aria-hidden', 'true');
+      const name = document.createElement('span');
+      appendText(name, platformLabel(draft.platform));
+      const code = document.createElement('small');
+      appendText(code, platformCode(draft.platform));
+      badge.append(dot, name, code);
+      const meta = document.createElement('span');
+      meta.className = 'draft-meta';
+      const actions = document.createElement('div');
+      actions.className = 'button-row';
+      const copy = document.createElement('button');
+      copy.type = 'button';
+      copy.className = 'quiet-button small copy-button';
+      appendText(copy, '复制本条');
+      copy.addEventListener('click', async () => {
+        try {
+          await copyText(draftText(collectEditedDrafts()[index]));
+          setStatus('已复制当前草稿。');
+        } catch {
+          setStatus('复制失败，请手动选择文本复制。', true);
+        }
+      });
+      actions.append(copy);
+      head.append(badge, meta, actions);
+
+      const pair = document.createElement('div');
+      pair.className = 'field-grid';
       const titleLabel = document.createElement('label');
       appendText(titleLabel, '标题');
       const title = document.createElement('input');
@@ -361,6 +553,7 @@
       tags.value = Array.isArray(draft.tags) ? draft.tags.join(', ') : '';
       tags.setAttribute('aria-label', `${platformLabel(draft.platform)}标签`);
       tagsLabel.append(tags);
+      pair.append(titleLabel, tagsLabel);
 
       const bodyLabel = document.createElement('label');
       appendText(bodyLabel, '正文');
@@ -378,37 +571,35 @@
       points.setAttribute('aria-label', `${platformLabel(draft.platform)}卖点`);
       pointsLabel.append(points);
 
-      const actions = document.createElement('div');
-      actions.className = 'button-row';
-      const copy = document.createElement('button');
-      copy.type = 'button';
-      copy.className = 'quiet-button copy-button';
-      appendText(copy, '复制本条');
-      copy.addEventListener('click', async () => {
-        try {
-          await copyText(draftText(collectEditedDrafts()[index]));
-          setStatus('已复制当前草稿。');
-        } catch {
-          setStatus('复制失败，请手动选择文本复制。', true);
-        }
-      });
-      actions.append(copy);
-      article.append(heading, titleLabel, tagsLabel, bodyLabel, pointsLabel, actions);
+      title.addEventListener('input', () => updateDraftMeta(article));
+      body.addEventListener('input', () => updateDraftMeta(article));
+      article.append(head, pair, bodyLabel, pointsLabel);
 
       if (Array.isArray(draft.reviewNotes) && draft.reviewNotes.length) {
-        const notes = document.createElement('ul');
-        notes.className = 'review-notes';
+        const notes = document.createElement('details');
+        notes.className = 'draft-notes';
+        notes.open = true;
+        const summary = document.createElement('summary');
+        appendText(summary, `模型复核提示（${draft.reviewNotes.length}）`);
+        const list = document.createElement('ul');
+        list.className = 'review-notes';
         for (const note of draft.reviewNotes) {
           const item = document.createElement('li');
           appendText(item, note);
-          notes.append(item);
+          list.append(item);
         }
+        notes.append(summary, list);
         article.append(notes);
       }
+
+      updateDraftMeta(article);
       results.append(article);
     }
+    renderDraftSummary(currentDrafts, currentReview);
     resultSection.classList.toggle('hidden', currentDrafts.length === 0);
   }
+
+  /* ---------- History rendering ---------- */
 
   function renderHistory() {
     const entries = readHistory();
@@ -416,10 +607,12 @@
     for (const session of entries) {
       const item = document.createElement('article');
       item.className = 'history-item';
-      const details = document.createElement('div');
+      const main = document.createElement('div');
+      main.className = 'history-main';
       const name = document.createElement('strong');
       appendText(name, session.productName || '未命名商品');
       const metadata = document.createElement('span');
+      metadata.className = 'history-meta';
       const platforms = session.payload && Array.isArray(session.payload.platforms)
         ? session.payload.platforms.map(platformLabel).join('、')
         : '';
@@ -428,25 +621,34 @@
       if (session.imageCount) pieces.push(`${session.imageCount} 张图片`);
       if (session.edited) pieces.push('已编辑');
       appendText(metadata, pieces.join(' · '));
-      details.append(name, metadata);
+      main.append(name, metadata);
+
       const actions = document.createElement('div');
       actions.className = 'button-row';
+      const dots = document.createElement('span');
+      dots.className = 'history-dots';
+      for (const platform of (session.payload && session.payload.platforms) || []) {
+        const dot = document.createElement('span');
+        dot.className = `platform-dot ${platformDotClass(platform)}`;
+        dot.title = platformLabel(platform);
+        dots.append(dot);
+      }
       const restore = document.createElement('button');
       restore.type = 'button';
-      restore.className = 'quiet-button';
+      restore.className = 'quiet-button small';
       appendText(restore, '恢复');
       restore.addEventListener('click', () => restoreSession(session));
       const remove = document.createElement('button');
       remove.type = 'button';
-      remove.className = 'quiet-button';
+      remove.className = 'quiet-button small';
       appendText(remove, '删除');
       remove.addEventListener('click', () => {
         deleteHistory(session.id);
         renderHistory();
         setStatus('已删除该条历史记录。');
       });
-      actions.append(restore, remove);
-      item.append(details, actions);
+      actions.append(dots, restore, remove);
+      item.append(main, actions);
       historyList.append(item);
     }
     historySection.classList.toggle('hidden', entries.length === 0);
@@ -480,8 +682,12 @@
     currentReview = session.review || null;
     renderReview(currentReview);
     renderDrafts(Array.isArray(session.drafts) ? session.drafts : []);
+    setStep(3);
     setStatus('已恢复本地会话；图片不会保存，如需图片分析请重新选择图片并生成。');
+    document.querySelector('#result-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
+
+  /* ---------- Images ---------- */
 
   function renderImages() {
     imagePreview.replaceChildren();
@@ -495,7 +701,7 @@
       appendText(caption, image.name);
       const remove = document.createElement('button');
       remove.type = 'button';
-      remove.className = 'quiet-button';
+      remove.className = 'quiet-button small';
       appendText(remove, '移除');
       remove.addEventListener('click', () => {
         images.splice(index, 1);
@@ -541,6 +747,8 @@
     renderImages();
   }
 
+  /* ---------- Events ---------- */
+
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const payload = collectPayload();
@@ -553,6 +761,8 @@
       return;
     }
     submitButton.disabled = true;
+    submitButton.classList.add('is-busy');
+    setStep(2);
     setStatus(payload.images.length ? '正在生成草稿（含图片，可能需要更久）…' : '正在生成草稿…');
     try {
       const response = await fetch('/api/generate', {
@@ -584,17 +794,48 @@
         imageCount: currentImageCount
       });
       renderHistory();
-      setStatus(`已生成 ${currentDrafts.length} 条草稿，请先查看“复核与合规提醒”。`);
+      setStep(3);
+      setStatus(`已生成 ${currentDrafts.length} 条草稿，请先查看复核与合规提醒。`);
     } catch (error) {
+      setStep(1);
       setStatus(error && error.message ? error.message : '生成失败，请重试。', true);
     } finally {
       submitButton.disabled = false;
+      submitButton.classList.remove('is-busy');
     }
+  });
+
+  form.addEventListener('change', (event) => {
+    if (event.target && event.target.name === 'platform') syncPlatformCards();
   });
 
   imageInput.addEventListener('change', async () => {
     await addFiles(imageInput.files || []);
     imageInput.value = '';
+  });
+
+  dropzone.addEventListener('click', () => imageInput.click());
+  dropzone.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      imageInput.click();
+    }
+  });
+  for (const name of ['dragenter', 'dragover']) {
+    dropzone.addEventListener(name, (event) => {
+      event.preventDefault();
+      dropzone.classList.add('is-over');
+    });
+  }
+  for (const name of ['dragleave', 'drop']) {
+    dropzone.addEventListener(name, (event) => {
+      event.preventDefault();
+      dropzone.classList.remove('is-over');
+    });
+  }
+  dropzone.addEventListener('drop', (event) => {
+    const files = event.dataTransfer && event.dataTransfer.files;
+    if (files && files.length) addFiles(files);
   });
 
   copyAll.addEventListener('click', async () => {
@@ -657,6 +898,9 @@
     setStatus('本地历史已清空。');
   });
 
+  initTheme();
+  syncPlatformCards();
   renderImages();
   renderHistory();
+  loadHealth();
 })();

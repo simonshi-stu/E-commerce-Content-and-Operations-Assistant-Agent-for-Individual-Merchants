@@ -12,12 +12,16 @@ const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 
 function sendJson(res, status, value) {
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-    'X-Content-Type-Options': 'nosniff'
-  });
-  res.end(JSON.stringify(value));
+  try {
+    res.writeHead(status, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff'
+    });
+    res.end(JSON.stringify(value));
+  } catch {
+    // The client may have disconnected; never crash the local server for that.
+  }
 }
 
 function sendError(res, status, code, message) {
@@ -87,7 +91,27 @@ function readJson(req) {
   });
 }
 
-const server = http.createServer(async (req, res) => {
+const server = http.createServer((req, res) => {
+  req.on('error', () => {});
+  res.on('error', () => {});
+  handleRequest(req, res).catch(() => {
+    try {
+      sendError(res, 500, 'internal_error', 'Internal error.');
+    } catch {
+      // Response already finished.
+    }
+  });
+});
+
+server.on('clientError', (error, socket) => {
+  try {
+    socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+  } catch {
+    // Socket already closed.
+  }
+});
+
+async function handleRequest(req, res) {
   const url = new URL(req.url, 'http://localhost');
   if (req.method === 'GET' && url.pathname === '/api/health') {
     const current = loadConfig(ROOT);
@@ -112,7 +136,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method === 'GET') return serveStatic(req, res, url.pathname);
   return sendError(res, 405, 'method_not_allowed', 'Method not allowed.');
-});
+}
 
 server.listen(loadConfig(ROOT).port, '127.0.0.1', () => {
   const address = server.address();

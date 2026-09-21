@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const http = require('node:http');
+const net = require('node:net');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { after, describe, it } = require('node:test');
@@ -462,13 +463,34 @@ describe('E-commerce demo server', () => {
       assert.equal(result.json.error.code, 'too_large');
     });
 
-    it('serves the static demo page', async () => {
-      const result = await request(`${baseUrl}/`);
+    it('stays alive when a client disconnects mid-request', async () => {
+      const port = Number(new URL(baseUrl).port);
+      await new Promise((resolve) => {
+        const socket = net.connect(port, '127.0.0.1', () => {
+          socket.write('POST /api/generate HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: 1000000\r\n\r\n{"productName":');
+          setTimeout(() => {
+            socket.destroy();
+            resolve();
+          }, 30);
+        });
+        socket.on('error', () => resolve());
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      setMode('valid');
+      const health = await request(`${baseUrl}/api/health`);
+      assert.equal(health.status, 200);
+      const generate = await postJson(baseUrl, '/api/generate', VALID_INPUT);
+      assert.equal(generate.status, 200);
+    });
+
+    it('serves the static demo page', async () => {      const result = await request(`${baseUrl}/`);
       assert.equal(result.status, 200);
       assert.match(result.headers.get('content-type') || '', /text\/html/);
       assert.match(result.text, /电商内容助手/);
       assert.match(result.text, /name="sellingPoints"/);
       assert.match(result.text, /name="specifications"/);
+      assert.match(result.text, /id="theme-toggle"/);
+      assert.match(result.text, /id="dropzone"/);
     });
 
     it('serves the frontend script with the draft tooling', async () => {
