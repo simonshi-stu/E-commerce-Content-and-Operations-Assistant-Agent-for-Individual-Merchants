@@ -546,6 +546,7 @@ describe('E-commerce demo server', () => {
       assert.match(intel.text, /id="score-form"/);
       assert.match(intel.text, /id="pricing-form"/);
       assert.match(intel.text, /id="fx-status"/);
+      assert.match(intel.text, /id="batch-run"/);
 
       const script = await request(`${baseUrl}/intel.js`);
       assert.equal(script.status, 200);
@@ -655,6 +656,20 @@ describe('E-commerce demo server', () => {
       assert.equal(missing.json.error.code, 'validation');
       const badJson = await postJson(baseUrl, '/api/intel/interpret', '{not json');
       assert.equal(badJson.status, 400);
+    });
+
+    it('assesses a pasted candidate list and ranks it', async () => {
+      const result = await postJson(baseUrl, '/api/intel/batch', {
+        text: 'name,cost,price,shipping,fee,ad,target,demand,competition,differentiation,risk,notes\nHelmet A,55,29.9,12,15,4,30,4,4,3,2,light\nHelmet B,80,39.9,15,15,6,30,3,3,4,2,MIPS'
+      });
+      assert.equal(result.status, 200);
+      assert.equal(result.json.data.summary.total, 2);
+      assert.ok(Array.isArray(result.json.data.rows));
+      assert.ok(['recommended', 'watch', 'avoid'].includes(result.json.data.rows[0].verdict));
+
+      const empty = await postJson(baseUrl, '/api/intel/batch', { text: '' });
+      assert.equal(empty.status, 400);
+      assert.equal(empty.json.error.code, 'validation');
     });
 
     it('serves exchange rates from the configured provider', async () => {

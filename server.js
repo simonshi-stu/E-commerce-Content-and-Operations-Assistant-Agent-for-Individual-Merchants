@@ -5,6 +5,7 @@ const http = require('node:http');
 const path = require('node:path');
 
 const { loadConfig } = require('./lib/env');
+const { assessCandidates, parseCandidateText } = require('./lib/candidates');
 const { parsePriceCsv } = require('./lib/csv');
 const { createFxService } = require('./lib/fx');
 const { compareCompetitors, priceStats, scoreProduct } = require('./lib/intel');
@@ -145,6 +146,16 @@ async function handleRequest(req, res) {
       else if (url.pathname === '/api/intel/prices') outcome = priceStats(body || {}, locale);
       else if (url.pathname === '/api/intel/import') outcome = parsePriceCsv(body && body.text, locale);
       else if (url.pathname === '/api/intel/pricing') outcome = buildPricing(body || {}, locale);
+      else if (url.pathname === '/api/intel/batch') {
+        const parsed = parseCandidateText(body && body.text, locale);
+        if (parsed.error) return sendError(res, 400, 'validation', parsed.error);
+        const assessed = assessCandidates(parsed.rows, {
+          locale,
+          dataBasis: body && body.dataBasis,
+          observedAt: body && body.observedAt
+        });
+        return sendJson(res, 200, { data: assessed.result });
+      }
       else if (url.pathname === '/api/intel/interpret') {
         if (!body || typeof body.kind !== 'string' || !body.result || typeof body.result !== 'object') {
           return sendError(res, 400, 'validation', uiMessage(locale, 'intel.interpret.required'));

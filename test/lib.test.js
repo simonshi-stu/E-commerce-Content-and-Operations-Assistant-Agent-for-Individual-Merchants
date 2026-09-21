@@ -17,6 +17,7 @@ const { buildTimeline } = require('../lib/timeline');
 const { parsePriceCsv } = require('../lib/csv');
 const { createFxService, parseRates } = require('../lib/fx');
 const { buildPricing } = require('../lib/pricing');
+const { assessCandidates, parseCandidateText } = require('../lib/candidates');
 const { normalizeIntelReview } = require('../lib/normalize');
 
 const TINY_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -728,8 +729,49 @@ describe('multi-currency pricing', () => {
   });
 });
 
-describe('amazon platform support', () => {
-  it('accepts Amazon as a platform', () => {
+describe('candidate batch assessment', () => {
+  it('parses header rows with English and Chinese aliases', () => {
+    const outcome = parseCandidateText('名称,成本,售价,运费,佣金%,广告,目标毛利%,需求,竞争,差异化,风险,备注\n头盔A,55,29.9,12,15,4,30,4,4,3,2,轻量通风', 'zh');
+    assert.equal(outcome.rows.length, 1);
+    assert.equal(outcome.rows[0].name, '头盔A');
+    assert.equal(outcome.rows[0].cost, 55);
+    assert.equal(outcome.rows[0].fee, 15);
+    assert.equal(outcome.rows[0].notes, '轻量通风');
+  });
+
+  it('parses positional rows and applies default levels', () => {
+    const outcome = parseCandidateText('Helmet A,55,29.9', 'en');
+    assert.equal(outcome.rows.length, 1);
+    assert.equal(outcome.rows[0].name, 'Helmet A');
+    assert.equal(outcome.rows[0].demand, 3);
+    assert.equal(outcome.rows[0].competition, 3);
+    assert.equal(outcome.rows[0].risk, 3);
+  });
+
+  it('ranks candidates and counts verdicts', () => {
+    const { result } = assessCandidates([
+      { name: 'Good', cost: 30, price: 100, shipping: 5, fee: 5, ad: 5, target: 30, demand: 5, competition: 2, differentiation: 4, risk: 2, notes: '' },
+      { name: 'Bad', cost: 120, price: 100, shipping: 10, fee: 5, ad: 5, target: 30, demand: 2, competition: 5, differentiation: 1, risk: 5, notes: '' },
+      { name: 'NoPrice', cost: 10, price: 0 }
+    ], { locale: 'en', dataBasis: 'verified', observedAt: new Date().toISOString().slice(0, 10) });
+    assert.equal(result.summary.total, 3);
+    assert.equal(result.rows[0].name, 'Good');
+    assert.equal(result.rows[0].verdict, 'recommended');
+    assert.equal(result.rows[1].name, 'Bad');
+    assert.equal(result.rows[1].verdict, 'avoid');
+    assert.equal(result.rows[2].verdict, 'invalid');
+    assert.equal(result.summary.recommended, 1);
+    assert.equal(result.summary.invalid, 1);
+    assert.ok(result.summary.averageMarginRate > 0);
+  });
+
+  it('requires input rows', () => {
+    assert.ok(parseCandidateText('', 'en').error);
+    assert.ok(parseCandidateText('   \n  ', 'zh').error);
+  });
+});
+
+describe('amazon platform support', () => {  it('accepts Amazon as a platform', () => {
     const value = normalizedBase({ platforms: ['Amazon', 'Tmall'] });
     assert.deepEqual(value.platforms, ['Amazon', 'Tmall']);
   });

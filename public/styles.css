@@ -591,6 +591,12 @@ button { font: inherit; }
 .source-list li { background: var(--panel-2); border: 1px solid var(--border); border-radius: 11px; padding: 10px 12px; }
 .source-list a { color: var(--accent-2); text-decoration: none; }
 .source-list a:hover { text-decoration: underline; }
+.result-table { border-collapse: collapse; font-size: .84rem; margin-top: 12px; width: 100%; }
+.result-table th, .result-table td { border-bottom: 1px solid var(--border); padding: 9px 10px; text-align: left; vertical-align: middle; }
+.result-table th { color: var(--faint); font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.result-table tbody tr:hover { background: var(--panel-2); }
+.result-table .verdict { font-size: .72rem; padding: 3px 9px; }
+.result-table .cred-badge { font-size: .68rem; }
 .score-list { display: grid; gap: 8px; margin-top: 14px; }
 .score-row { align-items: center; display: grid; font-size: .82rem; gap: 10px; grid-template-columns: 96px minmax(0, 1fr) 42px; }
 .score-track { background: var(--field-bg); border: 1px solid var(--border); border-radius: 999px; height: 8px; overflow: hidden; }

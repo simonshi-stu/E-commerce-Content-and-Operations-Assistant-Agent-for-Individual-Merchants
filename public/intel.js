@@ -46,6 +46,11 @@
   const templateName = document.querySelector('#template-name');
   const saveTemplateButton = document.querySelector('#save-template');
   const templateList = document.querySelector('#template-list');
+  const batchText = document.querySelector('#batch-text');
+  const batchBasis = document.querySelector('#batch-basis');
+  const batchRun = document.querySelector('#batch-run');
+  const batchStatus = document.querySelector('#batch-status');
+  const batchResultEl = document.querySelector('#batch-result');
 
   let locale = i18n.detect();
   let currentHealth = null;
@@ -53,9 +58,10 @@
   let compareResult = null;
   let pricesResult = null;
   let pricingResult = null;
+  let batchResult = null;
   let fxData = null;
-  const aiResults = { score: null, compare: null, prices: null };
-  const aiErrors = { score: '', compare: '', prices: '' };
+  const aiResults = { score: null, compare: null, prices: null, batch: null };
+  const aiErrors = { score: '', compare: '', prices: '', batch: '' };
   let aiBusy = '';
 
   function t(key, params) {
@@ -278,6 +284,7 @@
     renderCandidates();
     renderTemplates();
     renderPricingResult();
+    renderBatchResult();
     updateFxStatus();
     updateHealthText();
   }
@@ -768,7 +775,10 @@
   /* ---------- AI review ---------- */
 
   async function runAiReview(kind) {
-    const result = kind === 'score' ? scoreResult : kind === 'compare' ? compareResult : pricesResult;
+    const result = kind === 'score' ? scoreResult
+      : kind === 'compare' ? compareResult
+        : kind === 'batch' ? batchResult
+          : pricesResult;
     if (!result || aiBusy) return;
     aiBusy = kind;
     aiErrors[kind] = '';
@@ -787,6 +797,7 @@
   function renderAiFor(kind) {
     if (kind === 'score') renderScoreResult();
     else if (kind === 'compare') renderCompareResult();
+    else if (kind === 'batch') renderBatchResult();
     else renderPricesResult();
   }
 
@@ -1063,6 +1074,72 @@
     pricingPayout.value = 'USD';
   }
 
+  /* ---------- Batch candidates ---------- */
+
+  async function runBatch() {
+    const text = valueOf('#batch-text');
+    if (!text) {
+      setStatus(batchStatus, t('intel.batch.empty'), true);
+      return;
+    }
+    setStatus(batchStatus, t('intel.status.calculating'));
+    try {
+      batchResult = await postIntel('/api/intel/batch', {
+        text,
+        dataBasis: valueOf('#batch-basis') || 'estimated'
+      });
+      aiResults.batch = null;
+      aiErrors.batch = '';
+      renderBatchResult();
+      setStatus(batchStatus, '');
+    } catch (error) {
+      batchResult = null;
+      renderBatchResult();
+      setStatus(batchStatus, error && error.message ? error.message : t('intel.error.calculate'), true);
+    }
+  }
+
+  function renderBatchResult() {
+    batchResultEl.replaceChildren();
+    if (!batchResult) return;
+    const summary = batchResult.summary;
+    const chips = el('div', 'review-summary');
+    chips.append(
+      el('span', 'summary-chip', { text: t('intel.batch.summary', summary) }),
+      el('span', 'summary-chip', { text: `${t('intel.batch.avgMargin')}: ${fmt(summary.averageMarginRate)}%` }),
+      el('span', 'summary-chip', { text: `${t('intel.batch.avgScore')}: ${fmt(summary.averageScore)}` })
+    );
+
+    const table = el('table', 'result-table');
+    const headRow = el('tr');
+    for (const key of ['intel.batch.rank', 'intel.batch.name', 'intel.batch.verdict', 'intel.batch.margin', 'intel.batch.score', 'intel.batch.breakEven', 'intel.batch.confidence']) {
+      headRow.append(el('th', null, { text: t(key) }));
+    }
+    const thead = el('thead');
+    thead.append(headRow);
+    table.append(thead);
+    const body = el('tbody');
+    batchResult.rows.forEach((row, index) => {
+      const tr = el('tr');
+      tr.append(el('td', null, { text: String(index + 1) }));
+      tr.append(el('td', null, { text: row.name }));
+      const verdictCell = el('td');
+      if (row.verdict === 'invalid') {
+        verdictCell.append(el('span', 'cred-badge low', { text: t('intel.batch.invalid') }));
+      } else {
+        verdictCell.append(el('span', `verdict ${row.verdict}`, { text: t(`intel.verdict.${row.verdict}`) }));
+      }
+      tr.append(verdictCell);
+      tr.append(el('td', null, { text: row.verdict === 'invalid' ? '-' : `${fmt(row.marginRate)}%` }));
+      tr.append(el('td', null, { text: row.verdict === 'invalid' ? '-' : String(row.totalScore) }));
+      tr.append(el('td', null, { text: row.verdict === 'invalid' ? '-' : fmt(row.breakEvenPrice) }));
+      tr.append(el('td', null, { text: row.verdict === 'invalid' ? '-' : `${row.confidence.score} (${t(`intel.credibility.level.${row.confidence.level}`)})` }));
+      body.append(tr);
+    });
+    table.append(body);
+    batchResultEl.append(chips, table, aiBlock('batch'));
+  }
+
   /* ---------- Scoring templates ---------- */
 
   function readTemplates() {
@@ -1213,6 +1290,7 @@
     }
   });
 
+  batchRun.addEventListener('click', runBatch);
   pricingForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     setStatus(pricingStatus, t('intel.status.calculating'));

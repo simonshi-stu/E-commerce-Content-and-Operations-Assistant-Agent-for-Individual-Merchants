@@ -116,6 +116,20 @@
             <button id="export-candidates" class="quiet-button small" type="button" data-i18n="intel.action.exportJson">导出 JSON</button>
           </div>
           <div id="candidate-list"></div>
+          <div class="panel-head intel-subhead">
+            <h3 data-i18n="intel.batch.title">批量评估候选品</h3>
+          </div>
+          <p class="helper-text" data-i18n="intel.batch.hint">粘贴 CSV 或表格行（可从 Excel 直接复制）：名称,成本,售价,运费,佣金%,广告,目标毛利%,需求,竞争,差异化,风险,备注</p>
+          <textarea id="batch-text" class="compact" data-i18n-placeholder="intel.batch.placeholder"></textarea>
+          <div class="button-row">
+            <select id="batch-basis">
+              <option value="estimated" data-i18n="intel.basis.estimated">估算</option>
+              <option value="verified" data-i18n="intel.basis.verified">已验证（实测/官方）</option>
+            </select>
+            <button id="batch-run" class="quiet-button small" type="button" data-i18n="intel.batch.submit">开始评估</button>
+          </div>
+          <p class="status" id="batch-status" aria-live="polite"></p>
+          <div id="batch-result" class="result-area"></div>
         </section>
 
         <section class="panel intel-panel" aria-labelledby="compare-title">
