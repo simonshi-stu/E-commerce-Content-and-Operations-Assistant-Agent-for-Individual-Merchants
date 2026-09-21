@@ -1,48 +1,173 @@
 (() => {
   'use strict';
 
+  const PLATFORM_LABELS = Object.freeze({
+    Xiaohongshu: '小红书',
+    Douyin: '抖音',
+    Tmall: '天猫',
+    Pinduoduo: '拼多多'
+  });
+  const HISTORY_KEY = 'ecommerce-content-assistant-history-v2';
+  const LEGACY_HISTORY_KEY = 'ecommerce-content-demo-history-v1';
+  const ALLOWED_IMAGE_TYPES = Object.freeze(['image/png', 'image/jpeg', 'image/webp']);
+  const MAX_IMAGES = 4;
+  const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+
   const form = document.querySelector('#generator-form');
   const status = document.querySelector('#status');
   const submitButton = document.querySelector('#submit-button');
+  const reviewSection = document.querySelector('#review-section');
+  const reviewContent = document.querySelector('#review-content');
   const resultSection = document.querySelector('#result-section');
   const results = document.querySelector('#results');
   const copyAll = document.querySelector('#copy-all');
+  const saveEdits = document.querySelector('#save-edits');
+  const downloadMarkdown = document.querySelector('#download-markdown');
+  const downloadJson = document.querySelector('#download-json');
   const historySection = document.querySelector('#history-section');
   const historyList = document.querySelector('#history-list');
   const clearHistory = document.querySelector('#clear-history');
-  const historyKey = 'ecommerce-content-demo-history-v1';
+  const imageInput = document.querySelector('#image-input');
+  const imagePreview = document.querySelector('#image-preview');
+
+  let images = [];
+  let currentDrafts = [];
+  let currentReview = null;
+  let currentSessionId = null;
+  let currentSessionCreatedAt = null;
+  let currentImageCount = 0;
+
+  function platformLabel(platform) {
+    return PLATFORM_LABELS[platform] || platform || '未知平台';
+  }
+
+  function createId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+    return `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
 
   function setStatus(message, isError = false) {
     status.textContent = message;
     status.classList.toggle('error', isError);
   }
 
+  function appendText(element, text) {
+    element.textContent = typeof text === 'string' ? text : '';
+  }
+
+  function linesToList(value) {
+    return String(value || '')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
+
+  function parseSpecifications(value) {
+    const specifications = [];
+    for (const line of linesToList(value)) {
+      const separator = line.search(/[:：]/);
+      if (separator <= 0) continue;
+      const name = line.slice(0, separator).trim().slice(0, 40);
+      const specValue = line.slice(separator + 1).trim().slice(0, 120);
+      if (!name || !specValue) continue;
+      specifications.push({ name, value: specValue });
+      if (specifications.length >= 20) break;
+    }
+    return specifications;
+  }
+
+  function formatTime(value) {
+    const time = typeof value === 'string' ? new Date(value) : null;
+    return time && !Number.isNaN(time.valueOf()) ? time.toLocaleString() : '未知时间';
+  }
+
+  function collectPayload() {
+    return {
+      productName: form.productName.value.trim(),
+      productDescription: form.productDescription.value.trim(),
+      category: form.category.value.trim(),
+      brand: form.brand.value.trim(),
+      targetAudience: form.targetAudience.value.trim(),
+      priceInfo: form.priceInfo.value.trim(),
+      promotionInfo: form.promotionInfo.value.trim(),
+      afterSales: form.afterSales.value.trim(),
+      tone: form.tone.value.trim(),
+      sellingPoints: linesToList(form.sellingPoints.value),
+      specifications: parseSpecifications(form.specifications.value),
+      platforms: [...form.querySelectorAll('input[name="platform"]:checked')].map((item) => item.value),
+      images: images.map((image) => ({ name: image.name, mimeType: image.mimeType, dataBase64: image.dataBase64 }))
+    };
+  }
+
+  function setPlatforms(platforms) {
+    const selected = new Set(Array.isArray(platforms) ? platforms : []);
+    for (const checkbox of form.querySelectorAll('input[name="platform"]')) {
+      checkbox.checked = selected.has(checkbox.value);
+    }
+  }
+
   function readHistory() {
     try {
-      const saved = JSON.parse(localStorage.getItem(historyKey) || '[]');
-      return Array.isArray(saved) ? saved.slice(0, 10) : [];
+      const saved = JSON.parse(localStorage.getItem(HISTORY_KEY) || 'null');
+      if (Array.isArray(saved)) return saved.slice(0, 10);
+    } catch {
+      // Fall through to legacy migration.
+    }
+    const migrated = migrateLegacyHistory();
+    if (migrated.length) {
+      writeHistory(migrated);
+      return migrated;
+    }
+    return [];
+  }
+
+  function migrateLegacyHistory() {
+    try {
+      const legacy = JSON.parse(localStorage.getItem(LEGACY_HISTORY_KEY) || '[]');
+      if (!Array.isArray(legacy)) return [];
+      return legacy.slice(0, 10).map((entry, index) => {
+        const createdAt = typeof entry.createdAt === 'string' ? entry.createdAt : new Date().toISOString();
+        return {
+          id: `legacy-${index}-${Date.parse(createdAt) || Date.now()}`,
+          createdAt,
+          updatedAt: createdAt,
+          productName: entry.productName || '未命名商品',
+          payload: {
+            productName: entry.productName || '',
+            productDescription: entry.productDescription || '',
+            tone: entry.tone || '',
+            platforms: Array.isArray(entry.platforms) ? entry.platforms : []
+          },
+          drafts: Array.isArray(entry.drafts) ? entry.drafts : [],
+          review: null,
+          imageCount: 0,
+          migrated: true
+        };
+      });
     } catch {
       return [];
     }
   }
 
-  function saveHistory(entry) {
+  function writeHistory(entries) {
     try {
-      localStorage.setItem(historyKey, JSON.stringify([entry, ...readHistory()].slice(0, 10)));
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(entries.slice(0, 10)));
     } catch {
       // Local history is optional; generation still succeeds when storage is unavailable.
     }
   }
 
-  function draftText(draft) {
-    const notes = Array.isArray(draft.reviewNotes) && draft.reviewNotes.length
-      ? `\nReview notes:\n${draft.reviewNotes.map((note) => `- ${note}`).join('\n')}`
-      : '';
-    return `${draft.platform || 'Draft'}\n${draft.title || ''}\n\n${draft.body || ''}${notes}`.trim();
+  function upsertHistory(entry) {
+    const remaining = readHistory().filter((item) => item.id !== entry.id);
+    writeHistory([entry, ...remaining]);
+  }
+
+  function deleteHistory(id) {
+    writeHistory(readHistory().filter((item) => item.id !== id));
   }
 
   async function copyText(text) {
-    if (!text) throw new Error('There is no draft text to copy.');
+    if (!text) throw new Error('没有可复制的内容。');
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(text);
       return;
@@ -55,23 +180,234 @@
     temporaryInput.select();
     const copied = document.execCommand('copy');
     temporaryInput.remove();
-    if (!copied) throw new Error('Clipboard access is unavailable.');
+    if (!copied) throw new Error('剪贴板不可用。');
   }
 
-  function setPlatforms(platforms) {
-    const selected = new Set(Array.isArray(platforms) ? platforms : []);
-    for (const checkbox of form.querySelectorAll('input[name="platform"]')) {
-      checkbox.checked = selected.has(checkbox.value);
+  function downloadFile(fileName, text, mimeType) {
+    const blob = new Blob([text], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function draftText(draft) {
+    const parts = [platformLabel(draft.platform)];
+    if (draft.title) parts.push(`标题：${draft.title}`);
+    if (draft.sellingPoints && draft.sellingPoints.length) {
+      parts.push('', '卖点：', ...draft.sellingPoints.map((point) => `- ${point}`));
     }
+    if (draft.body) parts.push('', draft.body);
+    if (draft.tags && draft.tags.length) parts.push('', `标签：${draft.tags.map((tag) => `#${tag}`).join(' ')}`);
+    if (draft.reviewNotes && draft.reviewNotes.length) {
+      parts.push('', '复核提示：', ...draft.reviewNotes.map((note) => `- ${note}`));
+    }
+    return parts.join('\n').trim();
   }
 
-  function restoreSession(session) {
-    form.productName.value = typeof session.productName === 'string' ? session.productName : '';
-    form.productDescription.value = typeof session.productDescription === 'string' ? session.productDescription : '';
-    form.tone.value = typeof session.tone === 'string' ? session.tone : 'clear and helpful';
-    setPlatforms(session.platforms);
-    renderDrafts({ drafts: Array.isArray(session.drafts) ? session.drafts : [] });
-    setStatus('Local session restored. Review the facts again before generating or copying.');
+  function markdownFor(entry) {
+    const payload = entry.payload || {};
+    const drafts = Array.isArray(entry.drafts) ? entry.drafts : [];
+    const review = entry.review || {};
+    const lines = [`# ${payload.productName || '未命名商品'}：内容草稿`, ''];
+    if (Array.isArray(payload.platforms) && payload.platforms.length) {
+      lines.push(`- 平台：${payload.platforms.map(platformLabel).join('、')}`);
+    }
+    lines.push(`- 生成时间：${formatTime(entry.createdAt)}`);
+    if (entry.updatedAt && entry.updatedAt !== entry.createdAt) lines.push(`- 最近编辑：${formatTime(entry.updatedAt)}`);
+    if (entry.imageCount) lines.push(`- 使用图片：${entry.imageCount} 张（图片未保存到本地）`);
+    lines.push('');
+    for (const draft of drafts) {
+      lines.push(`## ${platformLabel(draft.platform)}`, '');
+      if (draft.title) lines.push(`**标题**：${draft.title}`, '');
+      if (draft.sellingPoints && draft.sellingPoints.length) {
+        lines.push('**核心卖点**', ...draft.sellingPoints.map((point) => `- ${point}`), '');
+      }
+      if (draft.body) lines.push('**正文**', '', draft.body, '');
+      if (draft.tags && draft.tags.length) {
+        lines.push(`**标签**：${draft.tags.map((tag) => `#${tag}`).join(' ')}`, '');
+      }
+      if (draft.reviewNotes && draft.reviewNotes.length) {
+        lines.push('**模型复核提示**', ...draft.reviewNotes.map((note) => `- ${note}`), '');
+      }
+    }
+    lines.push('## 复核与合规', '');
+    if (review.missingInfo && review.missingInfo.length) {
+      lines.push('### 缺失信息', ...review.missingInfo.map((item) => `- ${item}`), '');
+    }
+    if (review.riskWarnings && review.riskWarnings.length) {
+      lines.push('### 风险提示', ...review.riskWarnings.map((warning) => `- [${warning.severity === 'high' ? '高' : '中'}] ${warning.term}：${warning.excerpt}（${warning.reason}）`), '');
+    }
+    if (review.factChecks && review.factChecks.length) {
+      lines.push('### 数字核查', ...review.factChecks.map((check) => `- ${check.claim}：${check.note}`), '');
+    }
+    if (review.complianceReminders && review.complianceReminders.length) {
+      lines.push('### 合规提醒', ...review.complianceReminders.map((item) => `- ${item}`), '');
+    }
+    lines.push('> 本文件由本地工具生成，仅为草稿，请人工核实事实、价格、资质与平台规则后使用。');
+    return lines.join('\n');
+  }
+
+  function currentEntry() {
+    const payload = collectPayload();
+    delete payload.images;
+    return {
+      id: currentSessionId || createId(),
+      createdAt: currentSessionCreatedAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      productName: payload.productName,
+      payload,
+      drafts: collectEditedDrafts(),
+      review: currentReview,
+      imageCount: currentImageCount
+    };
+  }
+
+  function collectEditedDrafts() {
+    return [...results.querySelectorAll('.draft')].map((article, index) => {
+      const base = currentDrafts[index] || {};
+      return {
+        platform: article.dataset.platform || base.platform || 'Unknown',
+        title: article.querySelector('.draft-title').value.trim(),
+        body: article.querySelector('.draft-body').value.trim(),
+        tags: article.querySelector('.draft-tags').value
+          .split(/[,，]/)
+          .map((tag) => tag.trim().replace(/^#/, ''))
+          .filter(Boolean)
+          .slice(0, 12),
+        sellingPoints: linesToList(article.querySelector('.draft-points').value).slice(0, 8),
+        reviewNotes: Array.isArray(base.reviewNotes) ? base.reviewNotes : [],
+        missingInfo: Array.isArray(base.missingInfo) ? base.missingInfo : []
+      };
+    });
+  }
+
+  function reviewBlock(title, items, renderItem) {
+    const block = document.createElement('div');
+    block.className = 'review-block';
+    const heading = document.createElement('h3');
+    appendText(heading, title);
+    block.append(heading);
+    if (!items.length) {
+      const empty = document.createElement('p');
+      empty.className = 'empty-state';
+      appendText(empty, '暂无。');
+      block.append(empty);
+      return block;
+    }
+    const list = document.createElement('ul');
+    list.className = 'review-list';
+    for (const item of items) {
+      const entry = document.createElement('li');
+      renderItem(entry, item);
+      list.append(entry);
+    }
+    block.append(list);
+    return block;
+  }
+
+  function renderReview(review) {
+    reviewContent.replaceChildren();
+    if (!review) {
+      reviewSection.classList.add('hidden');
+      return;
+    }
+    reviewContent.append(reviewBlock('缺失信息', Array.isArray(review.missingInfo) ? review.missingInfo : [], (entry, item) => {
+      appendText(entry, item);
+    }));
+    reviewContent.append(reviewBlock('风险提示', Array.isArray(review.riskWarnings) ? review.riskWarnings : [], (entry, warning) => {
+      const badge = document.createElement('span');
+      badge.className = `severity ${warning.severity === 'high' ? 'high' : 'medium'}`;
+      appendText(badge, warning.severity === 'high' ? '高' : '中');
+      const text = document.createElement('span');
+      appendText(text, `${platformLabel(warning.platform)} · “${warning.term}”：${warning.excerpt}（${warning.reason}）`);
+      entry.append(badge, text);
+    }));
+    reviewContent.append(reviewBlock('数字核查', Array.isArray(review.factChecks) ? review.factChecks : [], (entry, check) => {
+      appendText(entry, `${check.claim}：${check.note}`);
+    }));
+    reviewContent.append(reviewBlock('合规提醒', Array.isArray(review.complianceReminders) ? review.complianceReminders : [], (entry, item) => {
+      appendText(entry, item);
+    }));
+    reviewSection.classList.remove('hidden');
+  }
+
+  function renderDrafts(drafts) {
+    results.replaceChildren();
+    currentDrafts = Array.isArray(drafts) ? drafts : [];
+    for (const [index, draft] of currentDrafts.entries()) {
+      const article = document.createElement('article');
+      article.className = 'draft';
+      article.dataset.platform = draft.platform || 'Unknown';
+      const heading = document.createElement('h3');
+      appendText(heading, platformLabel(draft.platform));
+
+      const titleLabel = document.createElement('label');
+      appendText(titleLabel, '标题');
+      const title = document.createElement('input');
+      title.className = 'draft-title';
+      title.value = draft.title || '';
+      title.setAttribute('aria-label', `${platformLabel(draft.platform)}标题`);
+      titleLabel.append(title);
+
+      const tagsLabel = document.createElement('label');
+      appendText(tagsLabel, '标签（英文逗号分隔，不含 #）');
+      const tags = document.createElement('input');
+      tags.className = 'draft-tags';
+      tags.value = Array.isArray(draft.tags) ? draft.tags.join(', ') : '';
+      tags.setAttribute('aria-label', `${platformLabel(draft.platform)}标签`);
+      tagsLabel.append(tags);
+
+      const bodyLabel = document.createElement('label');
+      appendText(bodyLabel, '正文');
+      const body = document.createElement('textarea');
+      body.className = 'draft-body';
+      body.value = draft.body || '';
+      body.setAttribute('aria-label', `${platformLabel(draft.platform)}正文`);
+      bodyLabel.append(body);
+
+      const pointsLabel = document.createElement('label');
+      appendText(pointsLabel, '核心卖点（每行一条）');
+      const points = document.createElement('textarea');
+      points.className = 'draft-points compact';
+      points.value = Array.isArray(draft.sellingPoints) ? draft.sellingPoints.join('\n') : '';
+      points.setAttribute('aria-label', `${platformLabel(draft.platform)}卖点`);
+      pointsLabel.append(points);
+
+      const actions = document.createElement('div');
+      actions.className = 'button-row';
+      const copy = document.createElement('button');
+      copy.type = 'button';
+      copy.className = 'quiet-button copy-button';
+      appendText(copy, '复制本条');
+      copy.addEventListener('click', async () => {
+        try {
+          await copyText(draftText(collectEditedDrafts()[index]));
+          setStatus('已复制当前草稿。');
+        } catch {
+          setStatus('复制失败，请手动选择文本复制。', true);
+        }
+      });
+      actions.append(copy);
+      article.append(heading, titleLabel, tagsLabel, bodyLabel, pointsLabel, actions);
+
+      if (Array.isArray(draft.reviewNotes) && draft.reviewNotes.length) {
+        const notes = document.createElement('ul');
+        notes.className = 'review-notes';
+        for (const note of draft.reviewNotes) {
+          const item = document.createElement('li');
+          appendText(item, note);
+          notes.append(item);
+        }
+        article.append(notes);
+      }
+      results.append(article);
+    }
+    resultSection.classList.toggle('hidden', currentDrafts.length === 0);
   }
 
   function renderHistory() {
@@ -82,87 +418,142 @@
       item.className = 'history-item';
       const details = document.createElement('div');
       const name = document.createElement('strong');
-      appendText(name, session.productName || 'Untitled product');
+      appendText(name, session.productName || '未命名商品');
       const metadata = document.createElement('span');
-      const time = typeof session.createdAt === 'string' ? new Date(session.createdAt) : null;
-      const label = time && !Number.isNaN(time.valueOf()) ? time.toLocaleString() : 'Saved local session';
-      appendText(metadata, label);
+      const platforms = session.payload && Array.isArray(session.payload.platforms)
+        ? session.payload.platforms.map(platformLabel).join('、')
+        : '';
+      const pieces = [formatTime(session.createdAt)];
+      if (platforms) pieces.push(platforms);
+      if (session.imageCount) pieces.push(`${session.imageCount} 张图片`);
+      if (session.edited) pieces.push('已编辑');
+      appendText(metadata, pieces.join(' · '));
       details.append(name, metadata);
+      const actions = document.createElement('div');
+      actions.className = 'button-row';
       const restore = document.createElement('button');
       restore.type = 'button';
       restore.className = 'quiet-button';
-      restore.textContent = 'Restore';
+      appendText(restore, '恢复');
       restore.addEventListener('click', () => restoreSession(session));
-      item.append(details, restore);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'quiet-button';
+      appendText(remove, '删除');
+      remove.addEventListener('click', () => {
+        deleteHistory(session.id);
+        renderHistory();
+        setStatus('已删除该条历史记录。');
+      });
+      actions.append(restore, remove);
+      item.append(details, actions);
       historyList.append(item);
     }
     historySection.classList.toggle('hidden', entries.length === 0);
   }
 
-  function appendText(element, text) {
-    element.textContent = typeof text === 'string' ? text : '';
+  function fillForm(payload) {
+    const source = payload || {};
+    form.productName.value = source.productName || '';
+    form.productDescription.value = source.productDescription || '';
+    form.category.value = source.category || '';
+    form.brand.value = source.brand || '';
+    form.targetAudience.value = source.targetAudience || '';
+    form.priceInfo.value = source.priceInfo || '';
+    form.promotionInfo.value = source.promotionInfo || '';
+    form.afterSales.value = source.afterSales || '';
+    form.tone.value = source.tone || '清晰、友好、可信';
+    form.sellingPoints.value = Array.isArray(source.sellingPoints) ? source.sellingPoints.join('\n') : '';
+    form.specifications.value = Array.isArray(source.specifications)
+      ? source.specifications.map((spec) => `${spec.name}: ${spec.value}`).join('\n')
+      : '';
+    setPlatforms(source.platforms);
   }
 
-  function renderDrafts(data) {
-    results.replaceChildren();
-    const drafts = data && Array.isArray(data.drafts) ? data.drafts : [];
-    for (const draft of drafts) {
-      const article = document.createElement('article');
-      article.className = 'draft';
-      const heading = document.createElement('h3');
-      appendText(heading, draft.platform || 'Draft');
-      const title = document.createElement('input');
-      title.value = draft.title || '';
-      title.setAttribute('aria-label', `${draft.platform || 'Draft'} title`);
-      const body = document.createElement('textarea');
-      body.value = draft.body || '';
-      body.setAttribute('aria-label', `${draft.platform || 'Draft'} body`);
-      const notes = document.createElement('ul');
-      notes.className = 'review-notes';
-      for (const note of Array.isArray(draft.reviewNotes) ? draft.reviewNotes : []) {
-        const item = document.createElement('li');
-        appendText(item, note);
-        notes.append(item);
-      }
-      const copy = document.createElement('button');
-      copy.type = 'button';
-      copy.className = 'quiet-button copy-button';
-      copy.textContent = 'Copy draft';
-      copy.addEventListener('click', async () => {
-        try {
-          await copyText(draftText({
-            platform: draft.platform,
-            title: title.value,
-            body: body.value,
-            reviewNotes: Array.from(notes.querySelectorAll('li')).map((item) => item.textContent || '')
-          }));
-          setStatus('Draft copied to your clipboard.');
-        } catch {
-          setStatus('Could not copy the draft. Select the text manually and copy it.', true);
-        }
+  function restoreSession(session) {
+    fillForm(session.payload);
+    images = [];
+    renderImages();
+    currentSessionId = session.id;
+    currentSessionCreatedAt = session.createdAt || new Date().toISOString();
+    currentImageCount = session.imageCount || 0;
+    currentReview = session.review || null;
+    renderReview(currentReview);
+    renderDrafts(Array.isArray(session.drafts) ? session.drafts : []);
+    setStatus('已恢复本地会话；图片不会保存，如需图片分析请重新选择图片并生成。');
+  }
+
+  function renderImages() {
+    imagePreview.replaceChildren();
+    images.forEach((image, index) => {
+      const figure = document.createElement('figure');
+      figure.className = 'image-card';
+      const preview = document.createElement('img');
+      preview.src = image.dataUrl;
+      preview.alt = image.name;
+      const caption = document.createElement('figcaption');
+      appendText(caption, image.name);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'quiet-button';
+      appendText(remove, '移除');
+      remove.addEventListener('click', () => {
+        images.splice(index, 1);
+        renderImages();
       });
-      article.append(heading, title, body, copy);
-      if (notes.childElementCount) article.append(notes);
-      results.append(article);
+      figure.append(preview, caption, remove);
+      imagePreview.append(figure);
+    });
+  }
+
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function addFiles(fileList) {
+    for (const file of [...fileList]) {
+      if (images.length >= MAX_IMAGES) {
+        setStatus(`最多支持 ${MAX_IMAGES} 张图片。`, true);
+        break;
+      }
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        setStatus('只支持 PNG、JPEG、WebP 格式的图片。', true);
+        continue;
+      }
+      if (file.size > MAX_IMAGE_BYTES) {
+        setStatus('单张图片不能超过 2MB。', true);
+        continue;
+      }
+      const dataUrl = await readFileAsDataUrl(file);
+      if (!dataUrl) {
+        setStatus('图片读取失败，请重试。', true);
+        continue;
+      }
+      const comma = dataUrl.indexOf(',');
+      const mimeType = dataUrl.slice(5, comma).split(';')[0] || file.type;
+      images.push({ name: file.name.slice(0, 100), mimeType, dataBase64: dataUrl.slice(comma + 1), dataUrl });
     }
-    resultSection.classList.toggle('hidden', drafts.length === 0);
+    renderImages();
   }
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const platforms = [...form.querySelectorAll('input[name="platform"]:checked')].map((item) => item.value);
-    if (platforms.length === 0) {
-      setStatus('Select at least one platform.', true);
+    const payload = collectPayload();
+    if (!payload.productName || !payload.productDescription) {
+      setStatus('请填写商品名称和商品描述。', true);
       return;
     }
-    const payload = {
-      productName: form.productName.value.trim(),
-      productDescription: form.productDescription.value.trim(),
-      tone: form.tone.value.trim(),
-      platforms
-    };
+    if (payload.platforms.length === 0) {
+      setStatus('请至少选择一个平台。', true);
+      return;
+    }
     submitButton.disabled = true;
-    setStatus('Generating editable drafts…');
+    setStatus(payload.images.length ? '正在生成草稿（含图片，可能需要更久）…' : '正在生成草稿…');
     try {
       const response = await fetch('/api/generate', {
         method: 'POST',
@@ -170,38 +561,102 @@
         body: JSON.stringify(payload)
       });
       const result = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(result && result.error && result.error.message ? result.error.message : 'Unable to generate drafts.');
-      renderDrafts(result.data);
-      saveHistory({ createdAt: new Date().toISOString(), ...payload, drafts: result.data.drafts });
+      if (!response.ok) {
+        throw new Error(result && result.error && result.error.message ? result.error.message : '生成失败，请重试。');
+      }
+      currentDrafts = result.data.drafts;
+      currentReview = result.data.review;
+      currentImageCount = payload.images.length;
+      currentSessionId = createId();
+      currentSessionCreatedAt = new Date().toISOString();
+      renderReview(currentReview);
+      renderDrafts(currentDrafts);
+      const storedPayload = { ...payload };
+      delete storedPayload.images;
+      upsertHistory({
+        id: currentSessionId,
+        createdAt: currentSessionCreatedAt,
+        updatedAt: currentSessionCreatedAt,
+        productName: storedPayload.productName,
+        payload: storedPayload,
+        drafts: currentDrafts,
+        review: currentReview,
+        imageCount: currentImageCount
+      });
       renderHistory();
-      setStatus('Drafts generated. Review every claim before use.');
+      setStatus(`已生成 ${currentDrafts.length} 条草稿，请先查看“复核与合规提醒”。`);
     } catch (error) {
-      setStatus(error && error.message ? error.message : 'Unable to generate drafts.', true);
+      setStatus(error && error.message ? error.message : '生成失败，请重试。', true);
     } finally {
       submitButton.disabled = false;
     }
   });
 
-  clearHistory.addEventListener('click', () => {
-    localStorage.removeItem(historyKey);
-    renderHistory();
-    setStatus('Local history cleared.');
+  imageInput.addEventListener('change', async () => {
+    await addFiles(imageInput.files || []);
+    imageInput.value = '';
   });
 
   copyAll.addEventListener('click', async () => {
-    const drafts = Array.from(results.querySelectorAll('.draft')).map((article) => ({
-      platform: article.querySelector('h3').textContent || 'Draft',
-      title: article.querySelector('input').value,
-      body: article.querySelector('textarea').value,
-      reviewNotes: Array.from(article.querySelectorAll('.review-notes li')).map((item) => item.textContent || '')
-    }));
+    const drafts = collectEditedDrafts();
     try {
       await copyText(drafts.map(draftText).join('\n\n---\n\n'));
-      setStatus('All current drafts copied to your clipboard.');
+      setStatus('已复制全部草稿。');
     } catch {
-      setStatus('Could not copy the drafts. Select the text manually and copy it.', true);
+      setStatus('复制失败，请手动选择文本复制。', true);
     }
   });
 
+  saveEdits.addEventListener('click', () => {
+    if (!currentDrafts.length) {
+      setStatus('当前没有可保存的草稿。', true);
+      return;
+    }
+    const entry = currentEntry();
+    entry.edited = true;
+    currentSessionId = entry.id;
+    currentSessionCreatedAt = entry.createdAt;
+    currentDrafts = entry.drafts;
+    upsertHistory(entry);
+    renderHistory();
+    setStatus('草稿修改已保存到本地历史。');
+  });
+
+  downloadMarkdown.addEventListener('click', () => {
+    if (!currentDrafts.length) {
+      setStatus('当前没有可导出的草稿。', true);
+      return;
+    }
+    const entry = currentEntry();
+    downloadFile(`ecommerce-drafts-${Date.now()}.md`, markdownFor(entry), 'text/markdown;charset=utf-8');
+    setStatus('已导出 Markdown 文件。');
+  });
+
+  downloadJson.addEventListener('click', () => {
+    if (!currentDrafts.length) {
+      setStatus('当前没有可导出的草稿。', true);
+      return;
+    }
+    const entry = currentEntry();
+    downloadFile(
+      `ecommerce-drafts-${Date.now()}.json`,
+      JSON.stringify({ exportedAt: new Date().toISOString(), ...entry }, null, 2),
+      'application/json;charset=utf-8'
+    );
+    setStatus('已导出 JSON 文件。');
+  });
+
+  clearHistory.addEventListener('click', () => {
+    try {
+      localStorage.removeItem(HISTORY_KEY);
+      localStorage.removeItem(LEGACY_HISTORY_KEY);
+    } catch {
+      // Ignore storage failures.
+    }
+    renderHistory();
+    setStatus('本地历史已清空。');
+  });
+
+  renderImages();
   renderHistory();
 })();

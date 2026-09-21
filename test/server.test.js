@@ -12,8 +12,9 @@ const SERVER_ENTRY = 'server.js';
 const MANAGED_ENV_KEYS = [
   'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY',
   'http_proxy', 'https_proxy', 'all_proxy',
-  'DEEPSEEK_API_KEY', 'DEEPSEEK_BASE_URL', 'DEEPSEEK_MODEL', 'DEEPSEEK_TIMEOUT_MS', 'DEEPSEEK_PORT',
-  'AI_API_KEY', 'AI_BASE_URL', 'AI_MODEL', 'AI_TIMEOUT_MS',
+  'DEEPSEEK_API_KEY', 'DEEPSEEK_BASE_URL', 'DEEPSEEK_MODEL', 'DEEPSEEK_VISION_MODEL',
+  'DEEPSEEK_TIMEOUT_MS', 'DEEPSEEK_PORT',
+  'AI_API_KEY', 'AI_BASE_URL', 'AI_MODEL', 'AI_VISION_MODEL', 'AI_TIMEOUT_MS',
   'PORT'
 ];
 
@@ -28,6 +29,7 @@ function prepareSandbox() {
   fs.mkdirSync(base, { recursive: true });
   const dir = fs.mkdtempSync(path.join(base, 'test-'));
   fs.copyFileSync(path.join(PROJECT_ROOT, SERVER_ENTRY), path.join(dir, SERVER_ENTRY));
+  fs.cpSync(path.join(PROJECT_ROOT, 'lib'), path.join(dir, 'lib'), { recursive: true });
   fs.cpSync(path.join(PROJECT_ROOT, 'public'), path.join(dir, 'public'), { recursive: true });
   return dir;
 }
@@ -124,11 +126,41 @@ const VALID_INPUT = {
   tone: 'clear and friendly'
 };
 
+const TINY_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+const TINY_PNG_IMAGE = { name: 'tumbler.png', mimeType: 'image/png', dataBase64: TINY_PNG_BASE64 };
+
 function completion(content) {
   return JSON.stringify({ choices: [{ message: { role: 'assistant', content } }] });
 }
 
 const VALID_DRAFTS = { drafts: [{ platform: 'Xiaohongshu', title: 'Title', body: 'Body', reviewNotes: ['Check facts'] }] };
+
+const STRUCTURED_DRAFTS = {
+  drafts: [{
+    platform: 'Xiaohongshu',
+    title: '通勤保温杯',
+    body: '第一段。\n第二段。',
+    tags: ['保温杯', '通勤好物'],
+    sellingPoints: ['24 小时保温'],
+    reviewNotes: ['材质信息来自商家资料'],
+    missingInfo: ['未提供包装清单']
+  }]
+};
+
+const RISKY_DRAFTS = {
+  drafts: [{
+    platform: 'Xiaohongshu',
+    title: '全网最低价保温杯',
+    body: '全网最低价，容量 999ml，永久保温。',
+    tags: ['保温杯'],
+    sellingPoints: ['永不漏水'],
+    reviewNotes: []
+  }]
+};
+
+const PARTIAL_DRAFTS = {
+  drafts: [{ platform: 'Xiaohongshu', title: '标题', body: '正文', reviewNotes: [] }]
+};
 
 describe('E-commerce demo server', () => {
   const sandbox = prepareSandbox();
@@ -154,6 +186,7 @@ describe('E-commerce demo server', () => {
       assert.equal(health.status, 200);
       assert.equal(health.json.configured, false);
       assert.equal(health.json.model, 'deepseek-flash');
+      assert.equal(health.json.visionConfigured, false);
 
       const generate = await postJson(baseUrl, '/api/generate', VALID_INPUT);
       assert.equal(generate.status, 503);
@@ -174,6 +207,18 @@ describe('E-commerce demo server', () => {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           return res.end(completion(JSON.stringify(VALID_DRAFTS)));
         }
+        if (providerMode === 'structured') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(completion(JSON.stringify(STRUCTURED_DRAFTS)));
+        }
+        if (providerMode === 'risky') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(completion(JSON.stringify(RISKY_DRAFTS)));
+        }
+        if (providerMode === 'partial') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(completion(JSON.stringify(PARTIAL_DRAFTS)));
+        }
         if (providerMode === 'fenced') {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           return res.end(completion(`\`\`\`json\n${JSON.stringify(VALID_DRAFTS)}\n\`\`\``));
@@ -189,6 +234,10 @@ describe('E-commerce demo server', () => {
         if (providerMode === 'unauthorized') {
           res.writeHead(401, { 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ error: { message: 'bad key' } }));
+        }
+        if (providerMode === 'bad-request') {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: { message: 'unsupported content type' } }));
         }
         if (providerMode === 'server-error') {
           res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -209,7 +258,7 @@ describe('E-commerce demo server', () => {
 
       fs.writeFileSync(
         path.join(sandbox, '.env.deepseek.local'),
-        `DEEPSEEK_API_KEY=test-key\nDEEPSEEK_BASE_URL=${mock.url}\nDEEPSEEK_MODEL=deepseek-flash\nDEEPSEEK_TIMEOUT_MS=1500\nPORT=0\n`
+        `DEEPSEEK_API_KEY=test-key\nDEEPSEEK_BASE_URL=${mock.url}\nDEEPSEEK_MODEL=deepseek-flash\nDEEPSEEK_VISION_MODEL=vision-model\nDEEPSEEK_TIMEOUT_MS=1500\nPORT=0\n`
       );
 
       app = startApp(sandbox, {});
@@ -217,6 +266,7 @@ describe('E-commerce demo server', () => {
 
       const health = await request(`${baseUrl}/api/health`);
       assert.equal(health.json.configured, true);
+      assert.equal(health.json.visionConfigured, true);
     });
 
     after(async () => {
@@ -230,6 +280,8 @@ describe('E-commerce demo server', () => {
       assert.equal(result.json.data.drafts[0].platform, 'Xiaohongshu');
       assert.equal(result.json.meta.provider, 'deepseek');
       assert.equal(result.json.meta.model, 'deepseek-flash');
+      assert.equal(result.json.meta.vision, false);
+      assert.equal(result.json.meta.usedImages, 0);
       assert.equal(lastProviderRequest.url, '/chat/completions');
       assert.equal(lastProviderRequest.auth, 'Bearer test-key');
       const sent = JSON.parse(lastProviderRequest.body);
@@ -237,6 +289,87 @@ describe('E-commerce demo server', () => {
       assert.equal(sent.response_format.type, 'json_object');
       assert.equal(sent.messages.length, 2);
       assert.equal(sent.messages[1].role, 'user');
+      assert.equal(typeof sent.messages[1].content, 'string');
+    });
+
+    it('returns structured tags, selling points, and a server-side review', async () => {
+      setMode('structured');
+      const result = await postJson(baseUrl, '/api/generate', VALID_INPUT);
+      assert.equal(result.status, 200);
+      const draft = result.json.data.drafts[0];
+      assert.deepEqual(draft.tags, ['保温杯', '通勤好物']);
+      assert.deepEqual(draft.sellingPoints, ['24 小时保温']);
+      const review = result.json.data.review;
+      assert.ok(review.missingInfo.includes('未提供包装清单'));
+      assert.ok(review.missingInfo.some((item) => item.includes('价格')));
+      assert.ok(review.complianceReminders.length >= 6);
+      assert.deepEqual(review.coverage, { requested: ['Xiaohongshu'], returned: ['Xiaohongshu'] });
+    });
+
+    it('flags risky wording and unsupported numbers in generated drafts', async () => {
+      setMode('risky');
+      const result = await postJson(baseUrl, '/api/generate', VALID_INPUT);
+      assert.equal(result.status, 200);
+      const warnings = result.json.data.review.riskWarnings;
+      assert.ok(warnings.length >= 1);
+      assert.ok(warnings.some((warning) => warning.term === '全网最低' && warning.severity === 'high'));
+      assert.ok(warnings.some((warning) => warning.term === '永久'));
+      assert.ok(result.json.data.review.factChecks.some((check) => check.claim === '999ml'));
+    });
+
+    it('warns when the model omits a requested platform', async () => {
+      setMode('partial');
+      const result = await postJson(baseUrl, '/api/generate', { ...VALID_INPUT, platforms: ['Xiaohongshu', 'Douyin'] });
+      assert.equal(result.status, 200);
+      assert.equal(result.json.data.drafts.length, 1);
+      assert.ok(result.json.data.review.missingInfo.some((item) => item.includes('Douyin')));
+      assert.deepEqual(result.json.data.review.coverage.returned, ['Xiaohongshu']);
+    });
+
+    it('sends images as multimodal content and switches to the vision model', async () => {
+      setMode('valid');
+      const result = await postJson(baseUrl, '/api/generate', { ...VALID_INPUT, images: [TINY_PNG_IMAGE] });
+      assert.equal(result.status, 200);
+      assert.equal(result.json.meta.usedImages, 1);
+      assert.equal(result.json.meta.vision, true);
+      assert.equal(result.json.meta.model, 'vision-model');
+      const sent = JSON.parse(lastProviderRequest.body);
+      assert.equal(sent.model, 'vision-model');
+      assert.ok(Array.isArray(sent.messages[1].content));
+      assert.equal(sent.messages[1].content[0].type, 'text');
+      assert.equal(sent.messages[1].content[1].type, 'image_url');
+      assert.match(sent.messages[1].content[1].image_url.url, /^data:image\/png;base64,/);
+      assert.equal(result.text.includes(TINY_PNG_BASE64), false);
+    });
+
+    it('maps a provider rejection of image input to vision_unsupported', async () => {
+      setMode('bad-request');
+      const withImages = await postJson(baseUrl, '/api/generate', { ...VALID_INPUT, images: [TINY_PNG_IMAGE] });
+      assert.equal(withImages.status, 400);
+      assert.equal(withImages.json.error.code, 'vision_unsupported');
+
+      setMode('bad-request');
+      const withoutImages = await postJson(baseUrl, '/api/generate', VALID_INPUT);
+      assert.equal(withoutImages.status, 400);
+      assert.equal(withoutImages.json.error.code, 'provider_rejected');
+    });
+
+    it('rejects an image whose content does not match the declared type', async () => {
+      const result = await postJson(baseUrl, '/api/generate', {
+        ...VALID_INPUT,
+        images: [{ name: 'fake.jpg', mimeType: 'image/jpeg', dataBase64: TINY_PNG_BASE64 }]
+      });
+      assert.equal(result.status, 400);
+      assert.equal(result.json.error.code, 'validation');
+    });
+
+    it('rejects unsupported image formats', async () => {
+      const result = await postJson(baseUrl, '/api/generate', {
+        ...VALID_INPUT,
+        images: [{ name: 'vector.svg', mimeType: 'image/svg+xml', dataBase64: TINY_PNG_BASE64 }]
+      });
+      assert.equal(result.status, 400);
+      assert.equal(result.json.error.code, 'validation');
     });
 
     it('accepts providers that wrap JSON in a markdown code fence', async () => {
@@ -279,7 +412,7 @@ describe('E-commerce demo server', () => {
       const result = await postJson(baseUrl, '/api/generate', VALID_INPUT);
       assert.equal(result.status, 502);
       assert.equal(result.json.error.code, 'provider_unavailable');
-      assert.match(result.json.error.message, /timed out/i);
+      assert.match(result.json.error.message, /超时/);
     });
 
     it('rejects malformed request JSON', async () => {
@@ -302,9 +435,29 @@ describe('E-commerce demo server', () => {
       assert.equal(result.json.error.code, 'validation');
     });
 
+    it('accepts the extended product fields and forwards them to the provider', async () => {
+      setMode('valid');
+      const result = await postJson(baseUrl, '/api/generate', {
+        ...VALID_INPUT,
+        category: '家居 / 杯具',
+        brand: 'Example',
+        targetAudience: '通勤人群',
+        priceInfo: '69 元',
+        promotionInfo: '满 2 件 9 折',
+        afterSales: '7 天无理由退换',
+        sellingPoints: ['24 小时保温', '316 不锈钢内胆'],
+        specifications: [{ name: '容量', value: '500ml' }]
+      });
+      assert.equal(result.status, 200);
+      const sent = JSON.parse(JSON.parse(lastProviderRequest.body).messages[1].content);
+      assert.equal(sent.category, '家居 / 杯具');
+      assert.deepEqual(sent.sellingPoints, ['24 小时保温', '316 不锈钢内胆']);
+      assert.deepEqual(sent.specifications, [{ name: '容量', value: '500ml' }]);
+    });
+
     it('rejects an oversized request body', async () => {
       setMode('valid');
-      const result = await postJson(baseUrl, '/api/generate', JSON.stringify({ ...VALID_INPUT, productDescription: 'x'.repeat(70000) }));
+      const result = await postJson(baseUrl, '/api/generate', JSON.stringify({ ...VALID_INPUT, productDescription: 'x'.repeat(13 * 1024 * 1024) }));
       assert.equal(result.status, 413);
       assert.equal(result.json.error.code, 'too_large');
     });
@@ -313,7 +466,16 @@ describe('E-commerce demo server', () => {
       const result = await request(`${baseUrl}/`);
       assert.equal(result.status, 200);
       assert.match(result.headers.get('content-type') || '', /text\/html/);
-      assert.match(result.text, /E-commerce Content Demo/);
+      assert.match(result.text, /电商内容助手/);
+      assert.match(result.text, /name="sellingPoints"/);
+      assert.match(result.text, /name="specifications"/);
+    });
+
+    it('serves the frontend script with the draft tooling', async () => {
+      const result = await request(`${baseUrl}/app.js`);
+      assert.equal(result.status, 200);
+      assert.match(result.headers.get('content-type') || '', /text\/javascript/);
+      assert.match(result.text, /sellingPoints/);
     });
 
     it('blocks directory traversal in static paths', async () => {
