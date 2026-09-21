@@ -578,6 +578,10 @@ button { font: inherit; }
   padding: 10px 12px;
 }
 .ranking-score { align-items: center; display: flex; gap: 8px; }
+.timeline-chart { height: auto; margin-top: 12px; width: 100%; }
+.chart-grid { stroke: var(--border); stroke-width: 1; }
+.chart-label { fill: var(--faint); font-family: inherit; font-size: 11px; }
+.template-name { flex: 1 1 220px; max-width: 320px; }
 .score-list { display: grid; gap: 8px; margin-top: 14px; }
 .score-row { align-items: center; display: grid; font-size: .82rem; gap: 10px; grid-template-columns: 96px minmax(0, 1fr) 42px; }
 .score-track { background: var(--field-bg); border: 1px solid var(--border); border-radius: 999px; height: 8px; overflow: hidden; }

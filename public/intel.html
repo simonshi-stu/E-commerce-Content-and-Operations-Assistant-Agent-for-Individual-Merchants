@@ -101,6 +101,14 @@
               <button type="submit" class="primary-button"><span class="button-label" data-i18n="intel.score.submit">计算评分</span></button>
             </div>
           </form>
+          <div class="panel-head intel-subhead">
+            <h3 data-i18n="intel.templates.title">评分模板</h3>
+            <div class="button-row">
+              <input id="template-name" class="template-name" maxlength="60" data-i18n-placeholder="intel.templates.name">
+              <button id="save-template" class="quiet-button small" type="button" data-i18n="intel.templates.save">保存当前参数</button>
+            </div>
+          </div>
+          <div id="template-list"></div>
           <p class="status" id="score-status" aria-live="polite"></p>
           <div id="score-result" class="result-area"></div>
           <div class="panel-head intel-subhead">
@@ -140,6 +148,11 @@
             <span class="panel-hint" data-i18n="intel.prices.hint">记录你的价格与竞品价格，得到价格带与建议定价。</span>
           </div>
           <form id="prices-form" class="intel-form" novalidate>
+            <div class="panel-head intel-subhead">
+              <h3 data-i18n="intel.import.title">批量导入价格（CSV 或表格粘贴）</h3>
+              <button id="import-prices" class="quiet-button small" type="button" data-i18n="intel.import.submit">导入到价格记录</button>
+            </div>
+            <textarea id="import-text" class="compact" data-i18n-placeholder="intel.import.placeholder"></textarea>
             <div class="panel-head intel-subhead">
               <h3 data-i18n="intel.prices.points">价格记录</h3>
               <button id="add-price" class="quiet-button small" type="button" data-i18n="intel.prices.add">添加记录</button>

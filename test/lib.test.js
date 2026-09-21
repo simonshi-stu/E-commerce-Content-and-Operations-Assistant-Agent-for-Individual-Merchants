@@ -1,6 +1,8 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const { describe, it } = require('node:test');
 
 const { MAX_IMAGE_BYTES, detectImageMime, validateInput } = require('../lib/validate');
@@ -11,6 +13,8 @@ const { parsePort, parseTimeout, resolveConfigValue } = require('../lib/env');
 const { normalizeLocale, reviewMessages, uiMessage } = require('../lib/messages');
 const { compareCompetitors, priceStats, scoreProduct } = require('../lib/intel');
 const { aggregateCredibility, assessmentConfidence, entryCredibility } = require('../lib/credibility');
+const { buildTimeline } = require('../lib/timeline');
+const { parsePriceCsv } = require('../lib/csv');
 const { normalizeIntelReview } = require('../lib/normalize');
 
 const TINY_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -539,4 +543,85 @@ describe('intel review normalization and prompt contract', () => {
     const zhMessages = buildIntelMessages({ locale: 'zh', kind: 'compare', result: {} });
     assert.match(zhMessages[0].content, /数据可信度契约/);
   });
+});
+
+describe('price timeline', () => {  it('builds series, trend, and volatility from dated points', () => {
+    const timeline = buildTimeline([
+      { platform: 'Tmall', label: 'Competitor A', price: 100, observedAt: '2026-09-01', sourceType: 'official_store' },
+      { platform: 'Tmall', label: 'Competitor A', price: 110, observedAt: '2026-09-10', sourceType: 'official_store' },
+      { platform: 'Tmall', label: 'Competitor A', price: 90, observedAt: '2026-09-20', sourceType: 'official_store' },
+      { platform: 'Pinduoduo', label: 'Mine', price: 80, observedAt: '2026-09-01', type: 'own' },
+      { platform: 'Pinduoduo', label: 'Mine', price: 80, observedAt: '2026-09-20', type: 'own' },
+      { price: 70 }
+    ]);
+    assert.equal(timeline.datedCount, 5);
+    assert.equal(timeline.undatedCount, 1);
+    assert.equal(timeline.series.length, 2);
+    const competitor = timeline.series.find((series) => series.name === 'Competitor A');
+    assert.equal(competitor.pointCount, 3);
+    assert.equal(competitor.first.price, 100);
+    assert.equal(competitor.last.price, 90);
+    assert.equal(competitor.changePercent, -10);
+    assert.equal(competitor.trend, 'down');
+    const mine = timeline.series.find((series) => series.name === 'Mine');
+    assert.equal(mine.trend, 'flat');
+    assert.equal(timeline.overall.firstDate, '2026-09-01');
+    assert.equal(timeline.overall.lastDate, '2026-09-20');
+    assert.equal(timeline.overall.trend, 'down');
+    assert.ok(timeline.overall.volatility > 0);
+    assert.equal(timeline.bounds.min, 80);
+    assert.equal(timeline.bounds.max, 110);
+  });
+
+  it('handles single points and empty input', () => {
+    const single = buildTimeline([{ label: 'A', price: 50, observedAt: '2026-09-01' }]);
+    assert.equal(single.series[0].trend, 'flat');
+    assert.equal(single.overall.changePercent, 0);
+    assert.equal(buildTimeline([]).datedCount, 0);
+    assert.equal(buildTimeline(null).undatedCount, 0);
+  });
+});
+
+describe('price csv import', () => {
+  it('parses a header-based csv with provenance fields', () => {
+    const csv = [
+      'date,platform,label,price,type,source,note',
+      '2026-09-01,Tmall,Competitor A,109,competitor,official_store,page URL',
+      '2026-09-15,Tmall,Competitor A,105,competitor,official_store,page URL'
+    ].join('\n');
+    const outcome = parsePriceCsv(csv, 'en');
+    assert.equal(outcome.result.rows.length, 2);
+    assert.equal(outcome.result.skipped, 0);
+    assert.equal(outcome.result.rows[0].observedAt, '2026-09-01');
+    assert.equal(outcome.result.rows[0].sourceType, 'official_store');
+    assert.equal(outcome.result.rows[1].price, 105);
+    assert.equal(outcome.result.rows[1].type, 'competitor');
+  });
+
+  it('supports positional rows, tabs, quotes, and Chinese values', () => {
+    const csv = '2026/9/1\t拼多多\t我的价格\t89\t我的价格\t我的实测\t"订单, 记录"\n2026-09-01,Pinduoduo,B,70,competitor,unknown';
+    const outcome = parsePriceCsv(csv, 'zh');
+    assert.equal(outcome.result.rows.length, 2);
+    assert.equal(outcome.result.rows[0].observedAt, '2026-09-01');
+    assert.equal(outcome.result.rows[0].type, 'own');
+    assert.equal(outcome.result.rows[0].sourceType, 'merchant_record');
+    assert.equal(outcome.result.rows[0].sourceNote, '订单, 记录');
+    assert.equal(outcome.result.rows[1].sourceType, 'unknown');
+  });
+
+  it('reports empty input and counts skipped rows', () => {
+    assert.ok(parsePriceCsv('', 'en').error);
+    assert.ok(parsePriceCsv('not a price row', 'en').error);
+    const partial = parsePriceCsv('date,price\n2026-09-01,abc\n2026-09-02,10', 'en');
+    assert.equal(partial.result.rows.length, 1);
+    assert.equal(partial.result.skipped, 1);
+  });
+});
+
+describe('frontend scripts', () => {
+  for (const file of ['app.js', 'intel.js', 'i18n.js']) {
+    it(`${file} parses without syntax errors`, () => {
+      execFileSync(process.execPath, ['--check', path.join(__dirname, '..', 'public', file)]);
+    });
+  }
 });

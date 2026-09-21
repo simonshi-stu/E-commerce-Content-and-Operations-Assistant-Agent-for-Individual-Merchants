@@ -5,6 +5,7 @@
   const THEME_KEY = 'ecommerce-content-assistant-theme';
   const LOCALE_KEY = 'ecommerce-content-assistant-locale';
   const CANDIDATES_KEY = 'ecommerce-content-assistant-candidates-v1';
+  const TEMPLATES_KEY = 'ecommerce-content-assistant-templates-v1';
   const PLATFORMS = ['Xiaohongshu', 'Douyin', 'Tmall', 'Pinduoduo'];
   const SOURCE_TYPES = ['official_store', 'merchant_record', 'platform_search', 'third_party_tool', 'screenshot_note', 'unknown'];
 
@@ -30,6 +31,11 @@
   const pricesResultEl = document.querySelector('#prices-result');
   const priceRows = document.querySelector('#price-rows');
   const addPrice = document.querySelector('#add-price');
+  const importText = document.querySelector('#import-text');
+  const importPrices = document.querySelector('#import-prices');
+  const templateName = document.querySelector('#template-name');
+  const saveTemplateButton = document.querySelector('#save-template');
+  const templateList = document.querySelector('#template-list');
 
   let locale = i18n.detect();
   let currentHealth = null;
@@ -258,6 +264,7 @@
     renderCompareResult();
     renderPricesResult();
     renderCandidates();
+    renderTemplates();
     updateHealthText();
   }
 
@@ -596,6 +603,106 @@
     return lines.join('\n');
   }
 
+  /* ---------- Timeline ---------- */
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  function svgEl(tag, attrs = {}) {
+    const node = document.createElementNS(SVG_NS, tag);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, String(value));
+    return node;
+  }
+
+  function timelineChart(timeline) {
+    const width = 640;
+    const height = 190;
+    const padding = { left: 52, right: 18, top: 16, bottom: 30 };
+    const svg = svgEl('svg', { viewBox: `0 0 ${width} ${height}`, class: 'timeline-chart', role: 'img' });
+    const min = timeline.bounds.min;
+    const max = timeline.bounds.max;
+    const span = Math.max(1e-6, max - min);
+    const dates = timeline.series.flatMap((series) => series.points.map((point) => point.observedAt)).sort();
+    const startTime = Date.parse(dates[0] || '');
+    const endTime = Date.parse(dates[dates.length - 1] || '');
+    const timeSpan = Math.max(1, endTime - startTime);
+    const plotWidth = width - padding.left - padding.right;
+    const plotHeight = height - padding.top - padding.bottom;
+    const xFor = (date) => padding.left + ((Date.parse(date) - startTime) / timeSpan) * plotWidth;
+    const yFor = (price) => padding.top + (1 - (price - min) / span) * plotHeight;
+
+    for (const [value, offset] of [[max, 0], [(max + min) / 2, plotHeight / 2], [min, plotHeight]]) {
+      svg.append(svgEl('line', {
+        x1: padding.left,
+        y1: padding.top + offset,
+        x2: width - padding.right,
+        y2: padding.top + offset,
+        class: 'chart-grid'
+      }));
+      const label = svgEl('text', { x: 8, y: padding.top + offset + 4, class: 'chart-label' });
+      label.textContent = fmt(value, 0);
+      svg.append(label);
+    }
+    for (const [date, anchor] of [[dates[0], 'start'], [dates[dates.length - 1], 'end']]) {
+      if (!date) continue;
+      const label = svgEl('text', {
+        x: anchor === 'start' ? padding.left : width - padding.right,
+        y: height - 8,
+        class: 'chart-label',
+        'text-anchor': anchor === 'start' ? 'start' : 'end'
+      });
+      label.textContent = date;
+      svg.append(label);
+    }
+
+    const colors = ['#6366f1', '#22d3ee', '#f472b6', '#fbbf24', '#34d399', '#a78bfa'];
+    timeline.series.forEach((series, index) => {
+      const color = colors[index % colors.length];
+      const coordinates = series.points.map((point) => `${xFor(point.observedAt)},${yFor(point.price)}`);
+      if (coordinates.length > 1) {
+        svg.append(svgEl('polyline', {
+          points: coordinates.join(' '),
+          fill: 'none',
+          stroke: color,
+          'stroke-width': 2.5,
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round'
+        }));
+      }
+      for (const point of series.points) {
+        svg.append(svgEl('circle', { cx: xFor(point.observedAt), cy: yFor(point.price), r: 3.5, fill: color }));
+      }
+    });
+    return svg;
+  }
+
+  function timelineBlock(timeline) {
+    const block = el('div', 'result-block');
+    const heading = el('h4');
+    heading.append(document.createTextNode(`${t('intel.timeline.title')} `));
+    heading.append(el('span', 'summary-chip', { text: t(`intel.timeline.trend.${timeline.overall.trend}`) }));
+    block.append(heading);
+    if (!timeline.datedCount) {
+      block.append(el('p', 'empty-inline', { text: t('intel.timeline.empty') }));
+      return block;
+    }
+    block.append(metricGrid([
+      [t('intel.timeline.trendLabel'), `${t(`intel.timeline.trend.${timeline.overall.trend}`)} (${fmt(timeline.overall.changePercent)}%)`],
+      [t('intel.timeline.volatility'), fmt(timeline.overall.volatility)],
+      [t('intel.timeline.range'), `${timeline.overall.firstDate} → ${timeline.overall.lastDate}`],
+      [t('intel.timeline.undated'), String(timeline.undatedCount)]
+    ]));
+    block.append(timelineChart(timeline));
+    const legend = el('div', 'review-summary');
+    for (const series of timeline.series) {
+      const platform = series.platform ? ` · ${platformLabel(series.platform)}` : '';
+      legend.append(el('span', 'summary-chip', {
+        text: `${series.name}${platform}: ${fmt(series.last.price)} (${series.changePercent > 0 ? '+' : ''}${fmt(series.changePercent)}%)`
+      }));
+    }
+    block.append(legend);
+    return block;
+  }
+
   function renderPricesResult() {
     pricesResultEl.replaceChildren();
     if (!pricesResult) return;
@@ -621,7 +728,7 @@
         [t('intel.result.breakEven'), fmt(result.costs.breakEvenPrice)],
         [t('intel.prices.suggested'), fmt(result.costs.suggestedPrice)]
       ])
-      : el('p', 'empty-inline', { text: t('intel.prices.infeasible') }));
+      : el('p', 'empty-inline', { text: result.costs.hasCosts ? t('intel.prices.infeasible') : t('intel.prices.noCosts') }));
 
     pricesResultEl.append(
       head,
@@ -635,6 +742,7 @@
         [t('intel.stats.p75'), fmt(result.stats.p75)],
         [t('intel.stats.stddev'), fmt(result.stats.standardDeviation)]
       ]),
+      timelineBlock(result.timeline),
       credibilityCard(result.dataCredibility),
       confidenceCard(result.confidence),
       groups,
@@ -770,6 +878,79 @@
     }
   }
 
+  /* ---------- Scoring templates ---------- */
+
+  function readTemplates() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(TEMPLATES_KEY) || '[]');
+      return Array.isArray(saved) ? saved.slice(0, 20) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function writeTemplates(entries) {
+    try {
+      localStorage.setItem(TEMPLATES_KEY, JSON.stringify(entries.slice(0, 20)));
+    } catch {
+      // Optional.
+    }
+  }
+
+  function saveTemplate() {
+    const name = valueOf('#template-name');
+    if (!name) {
+      setStatus(scoreStatus, t('intel.templates.named'), true);
+      return;
+    }
+    const entry = {
+      id: `template-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+      name,
+      savedAt: new Date().toISOString(),
+      input: readScoreInput()
+    };
+    writeTemplates([entry, ...readTemplates().filter((item) => item.name !== name)]);
+    if (templateName) templateName.value = '';
+    renderTemplates();
+    setStatus(scoreStatus, t('intel.templates.saved'));
+  }
+
+  function renderTemplates() {
+    templateList.replaceChildren();
+    const entries = readTemplates();
+    if (!entries.length) {
+      templateList.append(el('p', 'empty-inline', { text: t('intel.templates.empty') }));
+      return;
+    }
+    for (const entry of entries) {
+      const item = el('div', 'intel-candidate');
+      const info = el('div', 'history-main');
+      info.append(
+        el('strong', null, { text: entry.name }),
+        el('span', 'history-meta', { text: new Date(entry.savedAt).toLocaleString(locale === 'en' ? 'en-US' : 'zh-CN') })
+      );
+      const actions = buttonRow([
+        {
+          label: t('intel.templates.apply'),
+          onClick: () => {
+            fillScoreInput(entry.input);
+            setStatus(scoreStatus, t('intel.templates.applied'));
+          }
+        },
+        {
+          label: t('action.delete'),
+          onClick: () => {
+            writeTemplates(readTemplates().filter((item) => item.id !== entry.id));
+            renderTemplates();
+            setStatus(scoreStatus, t('intel.templates.deleted'));
+          }
+        }
+      ]);
+      item.append(info, actions);
+      templateList.append(item);
+    }
+  }
+
   /* ---------- Events ---------- */
 
   scoreForm.addEventListener('submit', async (event) => {
@@ -849,6 +1030,19 @@
 
   addCompetitor.addEventListener('click', () => addCompetitorRow());
   addPrice.addEventListener('click', () => addPriceRow());
+  saveTemplateButton.addEventListener('click', saveTemplate);
+  importPrices.addEventListener('click', async () => {
+    const text = valueOf('#import-text');
+    setStatus(pricesStatus, t('intel.status.calculating'));
+    try {
+      const data = await postIntel('/api/intel/import', { text });
+      priceRows.replaceChildren();
+      for (const row of data.rows) addPriceRow(row);
+      setStatus(pricesStatus, t('intel.import.done', { count: data.rows.length, skipped: data.skipped }));
+    } catch (error) {
+      setStatus(pricesStatus, error && error.message ? error.message : t('intel.error.calculate'), true);
+    }
+  });
   exportCandidates.addEventListener('click', () => {
     exportJson('candidates', { candidates: readCandidates() });
     setStatus(scoreStatus, t('intel.status.exported'));
@@ -859,5 +1053,6 @@
   addCompetitorRow();
   addPriceRow({ label: t('intel.group.own'), type: 'own', sourceType: 'merchant_record' });
   addPriceRow({ type: 'competitor' });
+  renderTemplates();
   loadHealth();
 })();

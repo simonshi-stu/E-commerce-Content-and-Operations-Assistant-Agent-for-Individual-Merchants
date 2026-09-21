@@ -5,6 +5,7 @@ const http = require('node:http');
 const path = require('node:path');
 
 const { loadConfig } = require('./lib/env');
+const { parsePriceCsv } = require('./lib/csv');
 const { compareCompetitors, priceStats, scoreProduct } = require('./lib/intel');
 const { normalizeLocale, uiMessage } = require('./lib/messages');
 const { MAX_BODY_BYTES, validateInput } = require('./lib/validate');
@@ -133,6 +134,7 @@ async function handleRequest(req, res) {
       if (url.pathname === '/api/intel/score') outcome = scoreProduct(body || {}, locale);
       else if (url.pathname === '/api/intel/compare') outcome = compareCompetitors(body || {}, locale);
       else if (url.pathname === '/api/intel/prices') outcome = priceStats(body || {}, locale);
+      else if (url.pathname === '/api/intel/import') outcome = parsePriceCsv(body && body.text, locale);
       else if (url.pathname === '/api/intel/interpret') {
         if (!body || typeof body.kind !== 'string' || !body.result || typeof body.result !== 'object') {
           return sendError(res, 400, 'validation', uiMessage(locale, 'intel.interpret.required'));

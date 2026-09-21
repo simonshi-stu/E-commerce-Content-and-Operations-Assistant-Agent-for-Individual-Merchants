@@ -578,7 +578,7 @@ describe('E-commerce demo server', () => {
       const prices = await postJson(baseUrl, '/api/intel/prices', {
         points: [
           { label: 'mine', price: 90, type: 'own', sourceType: 'merchant_record', sourceNote: 'order log', observedAt: new Date().toISOString().slice(0, 10) },
-          { label: 'a', price: 120, sourceType: 'unknown' }
+          { label: 'a', price: 120, sourceType: 'unknown', observedAt: new Date().toISOString().slice(0, 10) }
         ],
         unitCost: 30,
         platformFeeRate: 10,
@@ -590,6 +590,23 @@ describe('E-commerce demo server', () => {
       assert.equal(prices.json.data.points[0].credibility.sourceType, 'merchant_record');
       assert.equal(prices.json.data.points[1].credibility.sourceType, 'unknown');
       assert.ok(prices.json.data.dataCredibility.reasons.includes('unknown_source'));
+      assert.ok(prices.json.data.timeline);
+      assert.equal(prices.json.data.timeline.datedCount, 2);
+    });
+
+    it('imports pasted price data with provenance', async () => {
+      const result = await postJson(baseUrl, '/api/intel/import', {
+        text: 'date,platform,label,price,type,source,note\n2026-09-01,Tmall,A,109,competitor,official_store,page URL\n2026-09-15,Tmall,A,105,competitor,official_store,page URL'
+      });
+      assert.equal(result.status, 200);
+      assert.equal(result.json.data.rows.length, 2);
+      assert.equal(result.json.data.rows[1].price, 105);
+      assert.equal(result.json.data.rows[0].sourceType, 'official_store');
+      assert.equal(result.json.data.skipped, 0);
+
+      const empty = await postJson(baseUrl, '/api/intel/import', { text: '' });
+      assert.equal(empty.status, 400);
+      assert.equal(empty.json.error.code, 'validation');
     });
 
     it('reviews intel data with the model using the credibility contract', async () => {

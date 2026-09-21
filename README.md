@@ -12,6 +12,8 @@ A local, review-first content assistant that turns verified product facts into e
 - Presents a dashboard-style interface with Chinese/English switching, a three-mode theme (dark / light / follow system), step navigation, platform cards, drag-and-drop image input, a live review panel, and summary metrics.
 - Provides a second local page for Stage 2 workflows: candidate product scoring, competitor comparison, and price-band analysis based on data you enter manually.
 - Scores data provenance: every competitor or price entry carries a source type, source note, and observation date; the app returns per-entry credibility, an aggregate credibility score, a competitor credibility ranking, reason codes, and a confidence score for every conclusion it gives.
+- Draws a price timeline from dated price points, with series trends, overall trend, volatility, date range, and an inline SVG chart.
+- Lets you import price data by pasting CSV or spreadsheet rows (date, platform, label, price, type, source, note) and save reusable scoring templates per category.
 - Optionally sends the structured intelligence result to the configured model for an AI review that follows the same credibility contract (`skills/data-credibility/SKILL.md`) and must return its own confidence score.
 - Binds to `127.0.0.1` only, never writes API keys or image data to disk, and keeps draft history in `localStorage`.
 
@@ -118,7 +120,8 @@ Error codes: `validation`, `too_large`, `provider_not_configured`, `provider_err
 
 - `POST /api/intel/score` computes margin metrics and a weighted candidate score, plus a confidence score derived from the declared data basis (verified / estimated / guess) and observation date.
 - `POST /api/intel/compare` computes competitor price statistics, your price position, selling-point gaps, differentiators, per-entry credibility, a credibility ranking, aggregate data credibility, and conclusion confidence.
-- `POST /api/intel/prices` computes a price band (min, max, average, median, P25, P75, standard deviation), break-even price, suggested price, per-entry credibility, aggregate credibility, and confidence.
+- `POST /api/intel/prices` computes a price band (min, max, average, median, P25, P75, standard deviation), break-even price, suggested price, per-entry credibility, aggregate credibility, confidence, and a dated price `timeline` with per-series trend, volatility, and chart bounds.
+- `POST /api/intel/import` parses pasted CSV or tab-separated rows into price points with provenance; headers are optional and both English and Chinese source/type values are accepted.
 - `POST /api/intel/interpret` (requires a provider key) sends the structured result to the model with the credibility contract and returns a review with its own confidence score, caveats, and recommendations.
 
 Competitor and price entries accept `sourceType`, `sourceNote`, and `observedAt`; supported source types are `official_store`, `merchant_record`, `platform_search`, `third_party_tool`, `screenshot_note`, and `unknown`. Fresh official or personal-record data (within 30 days) scores highest; unknown or stale data is capped below "high". The full contract, weights, reason codes, and prompt block live in [`skills/data-credibility/SKILL.md`](skills/data-credibility/SKILL.md).
@@ -162,6 +165,8 @@ lib/prompt.js         bilingual system prompts and message construction
 lib/normalize.js      model output parsing and normalization
 lib/review.js         risk scan, fact checks, missing info, compliance reminders
 lib/intel.js          product scoring, competitor comparison, price statistics
+lib/timeline.js       dated price series, trends, volatility, chart bounds
+lib/csv.js            CSV and tab-separated price import with provenance
 lib/credibility.js    source weights, freshness, credibility and confidence scoring
 lib/provider.js       provider call, error mapping, response assembly
 public/index.html     content studio page
@@ -182,11 +187,11 @@ The suite uses Node's built-in `node:test` runner, so there are no extra depende
 npm test
 ```
 
-The unit tests cover validation rules, image checks, output normalization, review rules, bilingual messages, prompt building, env parsing, credibility scoring, intel calculators, and intel review normalization. Integration tests start the real server against a mock OpenAI-compatible provider and cover configuration precedence, structured and multimodal requests, provider errors and timeouts, malformed model output, review output, English-locale generation, the local intelligence endpoints (including provenance and credibility), the intel review endpoint, static file serving, directory-traversal rejection, and unsupported methods. The suite currently contains 78 tests.
+The unit tests cover validation rules, image checks, output normalization, review rules, bilingual messages, prompt building, env parsing, credibility scoring, intel calculators, intel review normalization, price timelines, CSV import parsing, and frontend script syntax. Integration tests start the real server against a mock OpenAI-compatible provider and cover configuration precedence, structured and multimodal requests, provider errors and timeouts, malformed model output, review output, English-locale generation, the local intelligence endpoints (including provenance, credibility, and timelines), the import and intel review endpoints, static file serving, directory-traversal rejection, and unsupported methods. The suite currently contains 87 tests.
 
 ## Roadmap
 
-Stage 2 is implemented locally: candidate product scoring, competitor comparison, price-band analysis, provenance and credibility scoring, an optional AI review with its own confidence score, and a manual publish pack that you review before publishing by hand. The credibility contract is versioned (`CREDIBILITY_VERSION`) and documented as a reusable skill. Possible later stages include import/export connectors for data you own, saved prompt templates per category, and richer pricing scenarios. Nothing in this repository publishes content, changes prices, or operates accounts automatically.
+Stage 3 is implemented locally: candidate product scoring with reusable category templates, competitor comparison, price-band analysis with an SVG price timeline, CSV import for data you own, provenance and credibility scoring, an optional AI review with its own confidence score, and a manual publish pack that you review before publishing by hand. The credibility contract is versioned (`CREDIBILITY_VERSION`) and documented as a reusable skill. Possible later stages include full intel dataset import/export, multi-currency and shipping-band pricing, and saved prompt templates per category. Nothing in this repository publishes content, changes prices, or operates accounts automatically.
 
 ## Contributing and security
 
