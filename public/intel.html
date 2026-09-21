@@ -172,6 +172,81 @@
           <p class="status" id="prices-status" aria-live="polite"></p>
           <div id="prices-result" class="result-area"></div>
         </section>
+
+        <section class="panel intel-panel" aria-labelledby="pricing-title">
+          <div class="panel-head">
+            <h2 id="pricing-title"><span class="panel-index">04</span><span data-i18n="intel.pricing.title">多币种定价与运费</span><small data-i18n="intel.pricing.sub">MULTI-CURRENCY PRICING</small></h2>
+            <span class="panel-hint" data-i18n="intel.pricing.hint">按公开汇率换算成本、运费与佣金，得到保本价与建议定价。</span>
+          </div>
+          <div class="fx-bar">
+            <span id="fx-status" class="chip chip-muted" data-i18n="intel.pricing.fxLoading">正在获取汇率…</span>
+            <label class="inline-field">
+              <span data-i18n="intel.pricing.fxManual">手动汇率</span>
+              <input id="fx-manual" type="number" min="0" step="0.0001">
+            </label>
+            <button id="fx-refresh" class="quiet-button small" type="button" data-i18n="intel.pricing.fxRefresh">刷新汇率</button>
+          </div>
+          <form id="pricing-form" class="intel-form" novalidate>
+            <div class="field-grid">
+              <label><span data-i18n="intel.pricing.marketplace">市场</span>
+                <select id="pricing-marketplace">
+                  <option value="amazon_na" data-i18n="intel.pricing.marketplace.amazon">亚马逊北美</option>
+                  <option value="generic" data-i18n="intel.pricing.marketplace.generic">通用</option>
+                </select>
+              </label>
+              <label><span data-i18n="intel.pricing.payout">收款币种</span><select id="pricing-payout" class="currency-select"></select></label>
+              <label><span data-i18n="intel.pricing.base">成本币种</span><select id="pricing-base" class="currency-select"></select></label>
+              <label><span data-i18n="intel.pricing.cost">商品成本</span><input id="pricing-cost" type="number" min="0" step="0.01"></label>
+              <label><span data-i18n="intel.pricing.shippingMode">运费方式</span>
+                <select id="pricing-shipping-mode">
+                  <option value="per_unit" data-i18n="intel.pricing.shipping.perUnit">按件</option>
+                  <option value="per_kg" data-i18n="intel.pricing.shipping.perKg">按公斤</option>
+                </select>
+              </label>
+              <label><span data-i18n="intel.pricing.shippingAmount">运费金额</span><input id="pricing-shipping" type="number" min="0" step="0.01"></label>
+              <label><span data-i18n="intel.pricing.weight">重量 kg</span><input id="pricing-weight" type="number" min="0" step="0.001" value="0.5"></label>
+              <label><span data-i18n="intel.pricing.dimensions">尺寸 cm（长/宽/高）</span>
+                <span class="triple-input">
+                  <input id="pricing-length" type="number" min="0" step="0.1" placeholder="L">
+                  <input id="pricing-width" type="number" min="0" step="0.1" placeholder="W">
+                  <input id="pricing-height" type="number" min="0" step="0.1" placeholder="H">
+                </span>
+              </label>
+              <label><span data-i18n="intel.pricing.divisor">体积重除数</span><input id="pricing-divisor" type="number" min="1" step="100" value="5000"></label>
+              <label><span data-i18n="intel.pricing.referral">平台佣金 %</span><input id="pricing-referral" type="number" min="0" max="90" step="0.1" value="15"></label>
+              <label><span data-i18n="intel.pricing.fulfillment">配送费（手动）</span><input id="pricing-fulfillment" type="number" min="0" step="0.01"></label>
+              <label><span data-i18n="intel.pricing.adMode">广告方式</span>
+                <select id="pricing-ad-mode">
+                  <option value="per_unit" data-i18n="intel.pricing.ad.perUnit">按件</option>
+                  <option value="percent" data-i18n="intel.pricing.ad.percent">按售价 %</option>
+                </select>
+              </label>
+              <label><span data-i18n="intel.pricing.adAmount">广告金额</span><input id="pricing-ad" type="number" min="0" step="0.01"></label>
+              <label><span data-i18n="intel.pricing.targetMargin">目标毛利率 %</span><input id="pricing-target" type="number" min="0" max="90" step="0.5" value="30"></label>
+              <label><span data-i18n="intel.pricing.listPrice">计划售价</span><input id="pricing-price" type="number" min="0" step="0.01"></label>
+            </div>
+            <div class="button-row">
+              <button type="submit" class="primary-button"><span class="button-label" data-i18n="intel.pricing.submit">计算定价</span></button>
+            </div>
+          </form>
+          <p class="status" id="pricing-status" aria-live="polite"></p>
+          <div id="pricing-result" class="result-area"></div>
+        </section>
+
+        <section class="panel intel-panel" aria-labelledby="sources-title">
+          <div class="panel-head">
+            <h2 id="sources-title"><span class="panel-index">05</span><span data-i18n="intel.sources.title">公开数据源（手动核对）</span><small data-i18n="intel.sources.sub">PUBLIC SOURCES</small></h2>
+          </div>
+          <p class="helper-text" data-i18n="intel.sources.hint">本工具不抓取、不登录任何平台。销量与竞品数据请从公开榜单或你已购买的数据工具导出后，用 CSV 导入或手动录入；后台操作请使用紫鸟浏览器。</p>
+          <ul class="source-list">
+            <li><a href="https://www.amazon.com/gp/bestsellers" target="_blank" rel="noopener noreferrer" data-i18n="intel.sources.bestsellers">亚马逊美亚销售榜（公开前台）</a></li>
+            <li><a href="https://www.amazon.com/gp/new-releases" target="_blank" rel="noopener noreferrer" data-i18n="intel.sources.newReleases">亚马逊美亚新品榜（公开前台）</a></li>
+            <li><a href="https://www.amz123.com/usatopkeywords" target="_blank" rel="noopener noreferrer" data-i18n="intel.sources.topKeywords">AMZ123 美国站热搜词</a></li>
+            <li><a href="https://trends.google.com/" target="_blank" rel="noopener noreferrer" data-i18n="intel.sources.trends">Google Trends</a></li>
+            <li><a href="https://www.amz123.com/exchangepage" target="_blank" rel="noopener noreferrer" data-i18n="intel.sources.fx">AMZ123 汇率换算</a></li>
+            <li><a href="https://www.amz123.com/" target="_blank" rel="noopener noreferrer" data-i18n="intel.sources.portal">AMZ123 跨境导航</a></li>
+          </ul>
+        </section>
       </div>
 
       <footer class="footer notice">

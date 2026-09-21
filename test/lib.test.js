@@ -15,6 +15,8 @@ const { compareCompetitors, priceStats, scoreProduct } = require('../lib/intel')
 const { aggregateCredibility, assessmentConfidence, entryCredibility } = require('../lib/credibility');
 const { buildTimeline } = require('../lib/timeline');
 const { parsePriceCsv } = require('../lib/csv');
+const { createFxService, parseRates } = require('../lib/fx');
+const { buildPricing } = require('../lib/pricing');
 const { normalizeIntelReview } = require('../lib/normalize');
 
 const TINY_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -624,4 +626,127 @@ describe('frontend scripts', () => {
       execFileSync(process.execPath, ['--check', path.join(__dirname, '..', 'public', file)]);
     });
   }
+});
+
+describe('exchange rates', () => {
+  it('parses both provider response shapes', () => {
+    const primary = parseRates({
+      result: 'success',
+      base_code: 'USD',
+      rates: { CNY: 7.1, EUR: 0.92, BAD: 'x' },
+      time_last_update_utc: 'Mon, 21 Sep 2026 00:00:00 +0000'
+    });
+    assert.equal(primary.base, 'USD');
+    assert.equal(primary.rates.CNY, 7.1);
+    assert.equal(primary.rates.USD, 1);
+    assert.equal(primary.rates.BAD, undefined);
+    const fallback = parseRates({ base: 'USD', date: '2026-09-18', rates: { CNY: 6.7 } });
+    assert.equal(fallback.updatedAt, '2026-09-18');
+    assert.equal(parseRates({}), null);
+    assert.equal(parseRates(null), null);
+  });
+
+  it('falls back to the secondary provider and caches results', async () => {
+    let primaryCalls = 0;
+    let fallbackCalls = 0;
+    const fetchImpl = async (url) => {
+      if (url.includes('primary')) {
+        primaryCalls += 1;
+        throw new Error('offline');
+      }
+      fallbackCalls += 1;
+      return { ok: true, json: async () => ({ base: 'USD', date: '2026-09-18', rates: { CNY: 6.7 } }) };
+    };
+    const service = createFxService({ fetchImpl, primaryUrl: 'https://primary.test', fallbackUrl: 'https://fallback.test', now: () => 1000 });
+    const first = await service.getRates('USD');
+    assert.equal(first.source, 'frankfurter.app');
+    assert.equal(first.cached, false);
+    const second = await service.getRates('USD');
+    assert.equal(second.cached, true);
+    assert.equal(primaryCalls, 1);
+    assert.equal(fallbackCalls, 1);
+  });
+
+  it('returns null when both providers fail', async () => {
+    const service = createFxService({
+      fetchImpl: async () => { throw new Error('offline'); },
+      primaryUrl: 'https://p.test',
+      fallbackUrl: 'https://f.test'
+    });
+    assert.equal(await service.getRates('USD'), null);
+  });
+});
+
+describe('multi-currency pricing', () => {
+  const rates = { USD: 1, CNY: 7, EUR: 0.9 };
+
+  it('converts costs and computes break-even and suggested prices', () => {
+    const { result } = buildPricing({
+      payoutCurrency: 'USD',
+      rates,
+      productCost: { amount: 70, currency: 'CNY' },
+      shipping: { mode: 'per_unit', amount: 14, currency: 'CNY' },
+      weightKg: 0.5,
+      dimensions: { length: 10, width: 10, height: 20 },
+      volumetricDivisor: 5000,
+      referralFeeRate: 15,
+      fulfillmentFee: { amount: 4, currency: 'USD' },
+      adCost: { mode: 'percent', amount: 10 },
+      targetMarginRate: 30
+    }, 'en');
+    assert.equal(result.perUnit.productCost, 10);
+    assert.equal(result.perUnit.shippingCost, 2);
+    assert.equal(result.volumetricWeight, 0.4);
+    assert.equal(result.chargeableWeightKg, 0.5);
+    assert.equal(result.fixedCost, 16);
+    assert.equal(result.breakEvenPrice, 21.33);
+    assert.equal(result.suggestedPrice, 35.56);
+    assert.equal(result.feasible, true);
+  });
+
+  it('computes profit at the planned price with shipping by weight', () => {
+    const { result } = buildPricing({
+      payoutCurrency: 'USD',
+      rates,
+      productCost: { amount: 70, currency: 'CNY' },
+      shipping: { mode: 'per_kg', amount: 20, currency: 'CNY' },
+      weightKg: 0.8,
+      referralFeeRate: 15,
+      adCost: { mode: 'per_unit', amount: 3, currency: 'USD' },
+      targetMarginRate: 30,
+      price: { amount: 30, currency: 'USD' }
+    }, 'en');
+    assert.equal(result.perUnit.shippingCost, 2.29);
+    assert.equal(result.atPlannedPrice.totalCost, 19.79);
+    assert.equal(result.atPlannedPrice.profit, 10.21);
+    assert.equal(result.atPlannedPrice.marginRate, 34.05);
+  });
+
+  it('reports missing rates and required costs', () => {
+    assert.ok(buildPricing({ payoutCurrency: 'USD', rates: {}, productCost: { amount: 1, currency: 'CNY' } }, 'en').error);
+    assert.ok(buildPricing({ payoutCurrency: 'USD', rates, productCost: { amount: 0 }, price: { amount: 0 } }, 'en').error);
+  });
+});
+
+describe('amazon platform support', () => {
+  it('accepts Amazon as a platform', () => {
+    const value = normalizedBase({ platforms: ['Amazon', 'Tmall'] });
+    assert.deepEqual(value.platforms, ['Amazon', 'Tmall']);
+  });
+
+  it('includes Amazon guidance and review notes', () => {
+    assert.match(SYSTEM_PROMPTS.en, /Amazon North America/);
+    assert.match(SYSTEM_PROMPTS.zh, /亚马逊/);
+    const review = buildReview(normalizedBase({ locale: 'en', platforms: ['Amazon'] }), [{
+      platform: 'Amazon',
+      title: 'T',
+      body: 'B',
+      tags: [],
+      sellingPoints: [],
+      reviewNotes: [],
+      missingInfo: []
+    }]);
+    assert.ok(review.missingInfo.some((item) => /Amazon/.test(item)));
+    assert.ok(review.complianceReminders.some((item) => /Amazon/.test(item)));
+  });
 });

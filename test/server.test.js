@@ -16,6 +16,7 @@ const MANAGED_ENV_KEYS = [
   'DEEPSEEK_API_KEY', 'DEEPSEEK_BASE_URL', 'DEEPSEEK_MODEL', 'DEEPSEEK_VISION_MODEL',
   'DEEPSEEK_TIMEOUT_MS', 'DEEPSEEK_PORT',
   'AI_API_KEY', 'AI_BASE_URL', 'AI_MODEL', 'AI_VISION_MODEL', 'AI_TIMEOUT_MS',
+  'FX_BASE_URL', 'FX_FALLBACK_URL', 'FX_TIMEOUT_MS', 'FX_CACHE_TTL_MS',
   'PORT'
 ];
 
@@ -215,6 +216,19 @@ describe('E-commerce demo server', () => {
     it('starts against the mock provider from an environment file', async () => {
       mock = await startMockProvider(async (req, res) => {
         lastProviderRequest = { url: req.url, auth: req.headers.authorization, body: await readRequestBody(req) };
+        if (req.url.startsWith('/fx/')) {
+          const base = req.url.split('/').pop() || 'USD';
+          const rates = base === 'CNY'
+            ? { CNY: 1, USD: 0.1429, EUR: 0.1313 }
+            : { USD: 1, CNY: 7.1, EUR: 0.92 };
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({
+            result: 'success',
+            base_code: base,
+            rates,
+            time_last_update_utc: 'Mon, 21 Sep 2026 00:00:00 +0000'
+          }));
+        }
         if (providerMode === 'valid') {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           return res.end(completion(JSON.stringify(VALID_DRAFTS)));
@@ -277,7 +291,10 @@ describe('E-commerce demo server', () => {
         `DEEPSEEK_API_KEY=test-key\nDEEPSEEK_BASE_URL=${mock.url}\nDEEPSEEK_MODEL=deepseek-flash\nDEEPSEEK_VISION_MODEL=vision-model\nDEEPSEEK_TIMEOUT_MS=1500\nPORT=0\n`
       );
 
-      app = startApp(sandbox, {});
+      app = startApp(sandbox, {
+        FX_BASE_URL: `${mock.url}/fx`,
+        FX_FALLBACK_URL: `${mock.url}/fx-fallback`
+      });
       baseUrl = await app.ready;
 
       const health = await request(`${baseUrl}/api/health`);
@@ -508,6 +525,7 @@ describe('E-commerce demo server', () => {
       assert.match(result.text, /id="language-switch"/);
       assert.match(result.text, /id="download-pack"/);
       assert.match(result.text, /id="dropzone"/);
+      assert.match(result.text, /value="Amazon"/);
     });
 
     it('serves the frontend script with the draft tooling', async () => {
@@ -526,6 +544,8 @@ describe('E-commerce demo server', () => {
       assert.equal(intel.status, 200);
       assert.match(intel.text, /intel\.html/);
       assert.match(intel.text, /id="score-form"/);
+      assert.match(intel.text, /id="pricing-form"/);
+      assert.match(intel.text, /id="fx-status"/);
 
       const script = await request(`${baseUrl}/intel.js`);
       assert.equal(script.status, 200);
@@ -635,6 +655,39 @@ describe('E-commerce demo server', () => {
       assert.equal(missing.json.error.code, 'validation');
       const badJson = await postJson(baseUrl, '/api/intel/interpret', '{not json');
       assert.equal(badJson.status, 400);
+    });
+
+    it('serves exchange rates from the configured provider', async () => {
+      const result = await request(`${baseUrl}/api/fx?base=CNY`);
+      assert.equal(result.status, 200);
+      assert.equal(result.json.data.base, 'CNY');
+      assert.ok(result.json.data.rates.USD > 0);
+      assert.equal(result.json.data.source, 'open.er-api.com');
+    });
+
+    it('computes multi-currency pricing locally', async () => {
+      const result = await postJson(baseUrl, '/api/intel/pricing', {
+        payoutCurrency: 'USD',
+        rates: { USD: 1, CNY: 7 },
+        productCost: { amount: 70, currency: 'CNY' },
+        shipping: { mode: 'per_unit', amount: 14, currency: 'CNY' },
+        referralFeeRate: 15,
+        fulfillmentFee: { amount: 4, currency: 'USD' },
+        adCost: { mode: 'percent', amount: 10 },
+        targetMarginRate: 30
+      });
+      assert.equal(result.status, 200);
+      assert.equal(result.json.data.perUnit.productCost, 10);
+      assert.equal(result.json.data.suggestedPrice, 35.56);
+    });
+
+    it('generates Amazon drafts using the Amazon guide', async () => {
+      setMode('valid');
+      const result = await postJson(baseUrl, '/api/generate', { ...VALID_INPUT, platforms: ['Amazon'], locale: 'en' });
+      assert.equal(result.status, 200);
+      assert.equal(result.json.data.drafts[0].platform, 'Amazon');
+      const sent = JSON.parse(lastProviderRequest.body);
+      assert.match(sent.messages[0].content, /Amazon North America/);
     });
 
     it('validates intel requests and localizes the errors', async () => {

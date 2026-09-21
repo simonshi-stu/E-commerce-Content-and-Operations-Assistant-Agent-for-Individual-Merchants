@@ -6,13 +6,16 @@ const path = require('node:path');
 
 const { loadConfig } = require('./lib/env');
 const { parsePriceCsv } = require('./lib/csv');
+const { createFxService } = require('./lib/fx');
 const { compareCompetitors, priceStats, scoreProduct } = require('./lib/intel');
+const { buildPricing } = require('./lib/pricing');
 const { normalizeLocale, uiMessage } = require('./lib/messages');
 const { MAX_BODY_BYTES, validateInput } = require('./lib/validate');
 const { generateContent, interpretIntel } = require('./lib/provider');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
+const fxService = createFxService();
 
 function sendJson(res, status, value) {
   try {
@@ -126,6 +129,12 @@ async function handleRequest(req, res) {
       visionConfigured: Boolean(current.visionModel)
     });
   }
+  if (req.method === 'GET' && url.pathname === '/api/fx') {
+    const locale = normalizeLocale(url.searchParams.get('locale'));
+    const rates = await fxService.getRates(url.searchParams.get('base') || 'USD');
+    if (!rates) return sendError(res, 502, 'fx_unavailable', uiMessage(locale, 'fx.unavailable'));
+    return sendJson(res, 200, { data: rates });
+  }
   if (req.method === 'POST' && url.pathname.startsWith('/api/intel/')) {
     try {
       const body = await readJson(req);
@@ -135,6 +144,7 @@ async function handleRequest(req, res) {
       else if (url.pathname === '/api/intel/compare') outcome = compareCompetitors(body || {}, locale);
       else if (url.pathname === '/api/intel/prices') outcome = priceStats(body || {}, locale);
       else if (url.pathname === '/api/intel/import') outcome = parsePriceCsv(body && body.text, locale);
+      else if (url.pathname === '/api/intel/pricing') outcome = buildPricing(body || {}, locale);
       else if (url.pathname === '/api/intel/interpret') {
         if (!body || typeof body.kind !== 'string' || !body.result || typeof body.result !== 'object') {
           return sendError(res, 400, 'validation', uiMessage(locale, 'intel.interpret.required'));

@@ -8,6 +8,7 @@
   const TEMPLATES_KEY = 'ecommerce-content-assistant-templates-v1';
   const PLATFORMS = ['Xiaohongshu', 'Douyin', 'Tmall', 'Pinduoduo'];
   const SOURCE_TYPES = ['official_store', 'merchant_record', 'platform_search', 'third_party_tool', 'screenshot_note', 'unknown'];
+  const CURRENCIES = ['CNY', 'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'MXN', 'BRL'];
 
   const themeSwitch = document.querySelector('#theme-switch');
   const languageSwitch = document.querySelector('#language-switch');
@@ -19,6 +20,15 @@
   const scoreResultEl = document.querySelector('#score-result');
   const candidateList = document.querySelector('#candidate-list');
   const exportCandidates = document.querySelector('#export-candidates');
+
+  const pricingForm = document.querySelector('#pricing-form');
+  const pricingStatus = document.querySelector('#pricing-status');
+  const pricingResultEl = document.querySelector('#pricing-result');
+  const pricingBase = document.querySelector('#pricing-base');
+  const pricingPayout = document.querySelector('#pricing-payout');
+  const fxStatus = document.querySelector('#fx-status');
+  const fxManual = document.querySelector('#fx-manual');
+  const fxRefresh = document.querySelector('#fx-refresh');
 
   const compareForm = document.querySelector('#compare-form');
   const compareStatus = document.querySelector('#compare-status');
@@ -42,6 +52,8 @@
   let scoreResult = null;
   let compareResult = null;
   let pricesResult = null;
+  let pricingResult = null;
+  let fxData = null;
   const aiResults = { score: null, compare: null, prices: null };
   const aiErrors = { score: '', compare: '', prices: '' };
   let aiBusy = '';
@@ -265,6 +277,8 @@
     renderPricesResult();
     renderCandidates();
     renderTemplates();
+    renderPricingResult();
+    updateFxStatus();
     updateHealthText();
   }
 
@@ -878,6 +892,177 @@
     }
   }
 
+  /* ---------- Currency and pricing ---------- */
+
+  function activeRates() {
+    const base = pricingBase && pricingBase.value ? pricingBase.value : 'CNY';
+    const payout = pricingPayout && pricingPayout.value ? pricingPayout.value : 'USD';
+    const rates = fxData && fxData.rates ? { ...fxData.rates } : {};
+    if (!Number.isFinite(rates[base])) rates[base] = 1;
+    const manual = Number.parseFloat(fxManual && fxManual.value);
+    if (Number.isFinite(manual) && manual > 0) rates[payout] = manual;
+    return { base, payout, rates };
+  }
+
+  function updateFxStatus() {
+    if (!fxStatus) return;
+    const { base, payout, rates } = activeRates();
+    if (fxManual && Number.parseFloat(fxManual.value) > 0) {
+      fxStatus.className = 'chip is-ok';
+      fxStatus.textContent = t('intel.pricing.fxManualOn', { base, payout, rate: fmt(rates[payout], 4) });
+      return;
+    }
+    if (fxData) {
+      fxStatus.className = 'chip is-ok';
+      fxStatus.textContent = t('intel.pricing.fxReady', {
+        base,
+        payout,
+        rate: fmt(rates[payout] || 0, 4),
+        source: fxData.source || '-',
+        updated: fxData.updatedAt || '-'
+      });
+      return;
+    }
+    fxStatus.className = 'chip is-warn';
+    fxStatus.textContent = t('intel.pricing.fxManual');
+  }
+
+  async function loadRates() {
+    const base = pricingBase && pricingBase.value ? pricingBase.value : 'CNY';
+    if (fxStatus) {
+      fxStatus.className = 'chip chip-muted';
+      fxStatus.textContent = t('intel.pricing.fxLoading');
+    }
+    try {
+      const response = await fetch(`/api/fx?base=${encodeURIComponent(base)}&locale=${encodeURIComponent(locale)}`);
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(body && body.error && body.error.message ? body.error.message : t('intel.pricing.infeasible'));
+      }
+      fxData = body.data;
+    } catch (error) {
+      fxData = null;
+      if (fxStatus) {
+        fxStatus.className = 'chip is-warn';
+        fxStatus.textContent = error && error.message ? error.message : t('intel.pricing.fxManual');
+      }
+      return;
+    }
+    updateFxStatus();
+  }
+
+  function readPricingInput() {
+    const { base, payout, rates } = activeRates();
+    return {
+      marketplace: valueOf('#pricing-marketplace') || 'amazon_na',
+      payoutCurrency: payout,
+      baseCurrency: base,
+      rates,
+      productCost: { amount: numberOf('#pricing-cost'), currency: base },
+      shipping: {
+        mode: valueOf('#pricing-shipping-mode') || 'per_unit',
+        amount: numberOf('#pricing-shipping'),
+        currency: base
+      },
+      weightKg: numberOf('#pricing-weight'),
+      dimensions: {
+        length: numberOf('#pricing-length'),
+        width: numberOf('#pricing-width'),
+        height: numberOf('#pricing-height')
+      },
+      volumetricDivisor: numberOf('#pricing-divisor') || 5000,
+      referralFeeRate: numberOf('#pricing-referral'),
+      fulfillmentFee: { amount: numberOf('#pricing-fulfillment'), currency: payout },
+      adCost: {
+        mode: valueOf('#pricing-ad-mode') || 'per_unit',
+        amount: numberOf('#pricing-ad'),
+        currency: payout
+      },
+      targetMarginRate: numberOf('#pricing-target'),
+      price: { amount: numberOf('#pricing-price'), currency: payout }
+    };
+  }
+
+  function pricingMarkdown(result) {
+    const lines = [
+      `# ${t('intel.pricing.title')} · ${result.payoutCurrency}`,
+      '',
+      `- ${t('intel.pricing.chargeable')}: ${fmt(result.chargeableWeightKg, 3)}`,
+      `- ${t('intel.pricing.fixedCost')}: ${fmt(result.fixedCost)}`,
+      `- ${t('intel.pricing.breakEven')}: ${result.breakEvenPrice ? fmt(result.breakEvenPrice) : '-'}`,
+      `- ${t('intel.pricing.suggested')}: ${result.feasible ? fmt(result.suggestedPrice) : t('intel.pricing.infeasible')}`,
+      '',
+      `## ${t('intel.pricing.perUnitCosts')}`,
+      `- ${t('intel.pricing.productCost')}: ${fmt(result.perUnit.productCost)}`,
+      `- ${t('intel.pricing.shippingCost')}: ${fmt(result.perUnit.shippingCost)}`,
+      `- ${t('intel.pricing.fulfillmentFee')}: ${fmt(result.perUnit.fulfillmentFee)}`,
+      `- ${t('intel.pricing.adCost')}: ${fmt(result.perUnit.adCost)}`
+    ];
+    if (result.atPlannedPrice) {
+      lines.push(
+        '',
+        `## ${t('intel.pricing.atPrice')}`,
+        `- ${t('intel.pricing.totalCost')}: ${fmt(result.atPlannedPrice.totalCost)}`,
+        `- ${t('intel.pricing.profit')}: ${fmt(result.atPlannedPrice.profit)}`,
+        `- ${t('intel.pricing.margin')}: ${fmt(result.atPlannedPrice.marginRate)}%`
+      );
+    }
+    return lines.join('\n');
+  }
+
+  function renderPricingResult() {
+    pricingResultEl.replaceChildren();
+    if (!pricingResult) return;
+    const result = pricingResult;
+    const head = el('div', 'result-head');
+    head.append(
+      el('h3', null, { text: `${t('intel.pricing.title')} · ${result.payoutCurrency}` }),
+      buttonRow([
+        { label: t('intel.action.exportJson'), onClick: () => exportJson('pricing', { result }) },
+        { label: t('intel.action.exportMd'), onClick: () => exportMarkdown('pricing', pricingMarkdown(result)) }
+      ])
+    );
+    const perUnit = el('div', 'result-block');
+    perUnit.append(el('h4', null, { text: t('intel.pricing.perUnitCosts') }));
+    perUnit.append(metricGrid([
+      [t('intel.pricing.productCost'), fmt(result.perUnit.productCost)],
+      [t('intel.pricing.shippingCost'), fmt(result.perUnit.shippingCost)],
+      [t('intel.pricing.fulfillmentFee'), fmt(result.perUnit.fulfillmentFee)],
+      [t('intel.pricing.adCost'), fmt(result.perUnit.adCost)]
+    ]));
+    pricingResultEl.append(head, metricGrid([
+      [t('intel.pricing.chargeable'), fmt(result.chargeableWeightKg, 3)],
+      [t('intel.pricing.fixedCost'), fmt(result.fixedCost)],
+      [t('intel.pricing.breakEven'), result.breakEvenPrice ? fmt(result.breakEvenPrice) : '-'],
+      [t('intel.pricing.suggested'), result.feasible ? fmt(result.suggestedPrice) : '-']
+    ]), perUnit);
+    if (!result.feasible) {
+      pricingResultEl.append(el('p', 'empty-inline', { text: t('intel.pricing.infeasible') }));
+    }
+    if (result.atPlannedPrice) {
+      const at = el('div', 'result-block');
+      at.append(el('h4', null, { text: t('intel.pricing.atPrice') }));
+      at.append(metricGrid([
+        [t('intel.pricing.totalCost'), fmt(result.atPlannedPrice.totalCost)],
+        [t('intel.pricing.profit'), fmt(result.atPlannedPrice.profit)],
+        [t('intel.pricing.margin'), `${fmt(result.atPlannedPrice.marginRate)}%`]
+      ]));
+      pricingResultEl.append(at);
+    } else {
+      pricingResultEl.append(el('p', 'empty-inline', { text: t('intel.pricing.noPrice') }));
+    }
+  }
+
+  function populateCurrencySelects() {
+    if (!pricingBase || !pricingPayout) return;
+    for (const select of [pricingBase, pricingPayout]) {
+      select.replaceChildren();
+      for (const code of CURRENCIES) select.append(new Option(code, code));
+    }
+    pricingBase.value = 'CNY';
+    pricingPayout.value = 'USD';
+  }
+
   /* ---------- Scoring templates ---------- */
 
   function readTemplates() {
@@ -1028,6 +1213,24 @@
     }
   });
 
+  pricingForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    setStatus(pricingStatus, t('intel.status.calculating'));
+    try {
+      pricingResult = await postIntel('/api/intel/pricing', readPricingInput());
+      renderPricingResult();
+      setStatus(pricingStatus, '');
+    } catch (error) {
+      pricingResult = null;
+      renderPricingResult();
+      setStatus(pricingStatus, error && error.message ? error.message : t('intel.error.calculate'), true);
+    }
+  });
+  pricingBase.addEventListener('change', () => loadRates());
+  pricingPayout.addEventListener('change', () => updateFxStatus());
+  fxManual.addEventListener('input', () => updateFxStatus());
+  fxRefresh.addEventListener('click', () => loadRates());
+
   addCompetitor.addEventListener('click', () => addCompetitorRow());
   addPrice.addEventListener('click', () => addPriceRow());
   saveTemplateButton.addEventListener('click', saveTemplate);
@@ -1050,9 +1253,11 @@
 
   initTheme();
   initLocale();
+  populateCurrencySelects();
   addCompetitorRow();
   addPriceRow({ label: t('intel.group.own'), type: 'own', sourceType: 'merchant_record' });
   addPriceRow({ type: 'competitor' });
   renderTemplates();
+  loadRates();
   loadHealth();
 })();

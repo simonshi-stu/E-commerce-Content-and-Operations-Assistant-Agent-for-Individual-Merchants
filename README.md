@@ -11,6 +11,9 @@ A local, review-first content assistant that turns verified product facts into e
 - Lets you edit drafts, save edits to browser-local history (up to 10 sessions), restore sessions, copy one or all drafts, and export Markdown, JSON, or a per-platform publish pack for manual publishing.
 - Presents a dashboard-style interface with Chinese/English switching, a three-mode theme (dark / light / follow system), step navigation, platform cards, drag-and-drop image input, a live review panel, and summary metrics.
 - Provides a second local page for Stage 2 workflows: candidate product scoring, competitor comparison, and price-band analysis based on data you enter manually.
+- Supports Amazon (North America) listings alongside the domestic platforms, with English listing guidance (keyword title, five bullets, information-dense description).
+- Fetches live exchange rates from keyless public endpoints (`open.er-api.com` with a `frankfurter.app` fallback and a one-hour cache) and calculates multi-currency pricing: product cost and first-leg shipping in the cost currency, fulfillment and ad costs in the payout currency, referral fees, break-even price, suggested price, and profit at the planned price.
+- Lists public research sources (Amazon US Best Sellers and New Releases, AMZ123 top keywords, Google Trends) for manual checks. It never scrapes platforms and never opens seller backends.
 - Scores data provenance: every competitor or price entry carries a source type, source note, and observation date; the app returns per-entry credibility, an aggregate credibility score, a competitor credibility ranking, reason codes, and a confidence score for every conclusion it gives.
 - Draws a price timeline from dated price points, with series trends, overall trend, volatility, date range, and an inline SVG chart.
 - Lets you import price data by pasting CSV or spreadsheet rows (date, platform, label, price, type, source, note) and save reusable scoring templates per category.
@@ -19,7 +22,7 @@ A local, review-first content assistant that turns verified product facts into e
 
 ## What is not included
 
-No auto-publishing, price changes, messaging, account operations, platform scraping, competitor or price intelligence feeds, sales forecasting, or video generation. The sourcing, competitor, and price panels only compute on data you enter manually. Generated text is a draft: always verify facts, prices, qualifications, intellectual property, and platform rules before use. The review layer is a heuristic aid, not legal, advertising, or compliance advice.
+No auto-publishing, price changes, messaging, account operations, platform scraping, sales-data feeds, seller-backend automation, competitor or price intelligence feeds, sales forecasting, or video generation. Amazon sales data must come from an official API or a tool export that you import manually; the sourcing, competitor, and price panels only compute on data you enter. Generated text is a draft: always verify facts, prices, qualifications, intellectual property, and platform rules before use. The review layer is a heuristic aid, not legal, advertising, or compliance advice.
 
 ## Run locally
 
@@ -41,6 +44,10 @@ DEEPSEEK_MODEL=deepseek-flash
 DEEPSEEK_VISION_MODEL=
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_TIMEOUT_MS=60000
+FX_BASE_URL=https://open.er-api.com/v6/latest
+FX_FALLBACK_URL=https://api.frankfurter.app/latest
+FX_TIMEOUT_MS=10000
+FX_CACHE_TTL_MS=3600000
 PORT=5178
 ```
 
@@ -48,11 +55,12 @@ Set `PORT=0` to let the operating system choose a free port; the server prints t
 
 Configuration precedence is: values supplied by the parent process, then `.env.deepseek.local`, then a legacy `.env`. Within each layer, `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`, `DEEPSEEK_VISION_MODEL`, `DEEPSEEK_BASE_URL`, and `DEEPSEEK_TIMEOUT_MS` take precedence over compatible `AI_API_KEY`, `AI_MODEL`, `AI_VISION_MODEL`, `AI_BASE_URL`, and `AI_TIMEOUT_MS` names. `DEEPSEEK_TIMEOUT_MS` is the per-request provider timeout in milliseconds (default `60000`); a two-platform `deepseek-flash` generation was measured at roughly 20 seconds, so allow headroom for slower reasoning models. Never paste a key into source code, tests, issues, screenshots, or commits.
 
-The server sends the product text, structured facts, and any selected images to the third-party provider you configure. Images are held in memory for that one request only: they are never written to disk and never saved to browser history. Recent draft sessions, including form data and drafts but not images, are stored in your browser until you clear them. Review that provider's terms, data handling, and pricing before use. Do not enter trade secrets, personal data, or information you are not authorized to share. This assistant should not be exposed directly to the public internet.
+The server sends the product text, structured facts, and any selected images to the third-party provider you configure. Recent draft sessions, including form data and drafts but not images, are stored in your browser until you clear them. Exchange-rate requests only send a currency code to the keyless public provider you configure; no product or account data is included. Review those providers' terms, data handling, and pricing before use. Do not enter trade secrets, personal data, or information you are not authorized to share. This assistant should not be exposed directly to the public internet.
 
 ## API
 
 - `GET /api/health` reports whether a usable API key is configured and whether a vision model is configured; it never returns the key.
+- `GET /api/fx?base=USD` returns live reference rates from the configured keyless provider, with a fallback provider and a one-hour cache. Only the base currency code is sent.
 - `POST /api/generate` accepts the product fields plus `platforms` and optional `images`, then returns structured drafts and the review result.
 
 Request fields:
@@ -122,6 +130,7 @@ Error codes: `validation`, `too_large`, `provider_not_configured`, `provider_err
 - `POST /api/intel/compare` computes competitor price statistics, your price position, selling-point gaps, differentiators, per-entry credibility, a credibility ranking, aggregate data credibility, and conclusion confidence.
 - `POST /api/intel/prices` computes a price band (min, max, average, median, P25, P75, standard deviation), break-even price, suggested price, per-entry credibility, aggregate credibility, confidence, and a dated price `timeline` with per-series trend, volatility, and chart bounds.
 - `POST /api/intel/import` parses pasted CSV or tab-separated rows into price points with provenance; headers are optional and both English and Chinese source/type values are accepted.
+- `POST /api/intel/pricing` converts product cost and first-leg shipping from the cost currency and fulfillment/ad costs from the payout currency, then returns per-unit costs, fixed cost, break-even price, suggested price for the target margin, and profit at the planned price.
 - `POST /api/intel/interpret` (requires a provider key) sends the structured result to the model with the credibility contract and returns a review with its own confidence score, caveats, and recommendations.
 
 Competitor and price entries accept `sourceType`, `sourceNote`, and `observedAt`; supported source types are `official_store`, `merchant_record`, `platform_search`, `third_party_tool`, `screenshot_note`, and `unknown`. Fresh official or personal-record data (within 30 days) scores highest; unknown or stale data is capped below "high". The full contract, weights, reason codes, and prompt block live in [`skills/data-credibility/SKILL.md`](skills/data-credibility/SKILL.md).
@@ -167,6 +176,8 @@ lib/review.js         risk scan, fact checks, missing info, compliance reminders
 lib/intel.js          product scoring, competitor comparison, price statistics
 lib/timeline.js       dated price series, trends, volatility, chart bounds
 lib/csv.js            CSV and tab-separated price import with provenance
+lib/fx.js             keyless exchange-rate fetch, fallback provider, and cache
+lib/pricing.js        multi-currency cost conversion and pricing math
 lib/credibility.js    source weights, freshness, credibility and confidence scoring
 lib/provider.js       provider call, error mapping, response assembly
 public/index.html     content studio page
@@ -187,11 +198,11 @@ The suite uses Node's built-in `node:test` runner, so there are no extra depende
 npm test
 ```
 
-The unit tests cover validation rules, image checks, output normalization, review rules, bilingual messages, prompt building, env parsing, credibility scoring, intel calculators, intel review normalization, price timelines, CSV import parsing, and frontend script syntax. Integration tests start the real server against a mock OpenAI-compatible provider and cover configuration precedence, structured and multimodal requests, provider errors and timeouts, malformed model output, review output, English-locale generation, the local intelligence endpoints (including provenance, credibility, and timelines), the import and intel review endpoints, static file serving, directory-traversal rejection, and unsupported methods. The suite currently contains 87 tests.
+The unit tests cover validation rules, image checks, output normalization, review rules, bilingual messages, prompt building, env parsing, credibility scoring, intel calculators, intel review normalization, price timelines, CSV import parsing, exchange-rate parsing and caching, multi-currency pricing, Amazon platform guidance, and frontend script syntax. Integration tests start the real server against a mock OpenAI-compatible provider and cover configuration precedence, structured and multimodal requests, provider errors and timeouts, malformed model output, review output, English and Amazon generation, the local intelligence endpoints (including provenance, credibility, timelines, and pricing), the exchange-rate endpoint, the import and intel review endpoints, static file serving, directory-traversal rejection, and unsupported methods. The suite currently contains 98 tests.
 
 ## Roadmap
 
-Stage 3 is implemented locally: candidate product scoring with reusable category templates, competitor comparison, price-band analysis with an SVG price timeline, CSV import for data you own, provenance and credibility scoring, an optional AI review with its own confidence score, and a manual publish pack that you review before publishing by hand. The credibility contract is versioned (`CREDIBILITY_VERSION`) and documented as a reusable skill. Possible later stages include full intel dataset import/export, multi-currency and shipping-band pricing, and saved prompt templates per category. Nothing in this repository publishes content, changes prices, or operates accounts automatically.
+The current focus is North America Amazon alongside the domestic platforms. Stage 3 is implemented locally: candidate product scoring with reusable category templates, competitor comparison, price-band analysis with an SVG price timeline, CSV import for data you own, multi-currency pricing and shipping with live rates, Amazon listing generation, provenance and credibility scoring, an optional AI review with its own confidence score, and a manual publish pack that you review before publishing by hand. The credibility contract is versioned (`CREDIBILITY_VERSION`) and documented as a reusable skill. Sales and keyword data must come from public rankings, Google Trends, an official API, or a paid tool export that you import manually; this repository never scrapes platforms or touches seller backends. Possible later stages include full intel dataset import/export and category-level keyword templates. Nothing in this repository publishes content, changes prices, or operates accounts automatically.
 
 ## Contributing and security
 
