@@ -811,6 +811,9 @@ describe('market recon', () => {
     assert.ok(result.brands.dominantSellers.length >= 1);
     assert.equal(result.reviews.median, 5000);
     assert.equal(result.demand.monthlyUnitsFloor, 18800);
+    assert.equal(result.demand.reviewRate, 0.01);
+    assert.equal(result.demand.cumulativeUnitsEstimate, (6 * 5000 + 4 * 80) * 100);
+    assert.equal(result.brands.unknownShare, 0);
     assert.ok(result.features.some((item) => item.term === 'mips'));
     assert.equal(result.price.bands.length, 3);
     assert.ok(['high', 'medium', 'low'].includes(result.entry.level));
@@ -818,6 +821,20 @@ describe('market recon', () => {
     assert.ok(result.entry.reasons.includes('demand_confirmed'));
     assert.ok(result.entry.reasons.includes('review_wall'));
     assert.ok(result.entry.reasons.includes('healthy_spread'));
+  });
+
+  it('excludes unknown brands from concentration and ranking', () => {
+    const rows = [
+      { title: 'Adult Bike Helmet One', brand: '', price: 30, rating: 4.5, reviews: 100, bought: 50, position: 1, keyword: 'k' },
+      { title: 'Unisex Cycling Helmet Two', brand: '', price: 35, rating: 4.5, reviews: 200, bought: 60, position: 2, keyword: 'k' },
+      { title: 'Acme Aero Helmet', brand: 'Acme', price: 40, rating: 4.4, reviews: 300, bought: 70, position: 3, keyword: 'k' }
+    ];
+    const { result } = analyzeMarket(rows, { locale: 'en' });
+    assert.equal(result.brands.count, 1);
+    assert.equal(result.brands.top[0].brand, 'Acme');
+    assert.equal(result.brands.topThreeShare, 33.33);
+    assert.equal(result.brands.unknownShare, 66.67);
+    assert.ok(result.entry.reasons.includes('missing_brand'));
   });
 
   it('requires rows', () => {

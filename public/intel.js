@@ -1201,9 +1201,12 @@
       [t('intel.market.top10Reviews'), String(result.reviews.top10Median)],
       [t('intel.market.demand'), `${result.demand.listingsWithSignal} / ${result.sample}`],
       [t('intel.market.demandFloor'), fmt(result.demand.monthlyUnitsFloor, 0)],
+      [t('intel.market.reviewsEstimate', { multiplier: Math.round(1 / result.demand.reviewRate) }), fmt(result.demand.cumulativeUnitsEstimate, 0)],
+      [t('intel.market.unknownBrands'), `${fmt(result.brands.unknownShare)}%`],
       [t('intel.market.spread'), fmt(result.price.spread)],
       [t('intel.stats.median'), fmt(result.price.median)]
     ]);
+    const estimateNote = el('p', 'empty-inline', { text: t('intel.market.reviewsEstimateHint') });
 
     const components = el('div', 'review-summary');
     components.append(
@@ -1261,7 +1264,7 @@
     reasons.append(el('h4', null, { text: t('intel.market.reasons') }));
     reasons.append(chipList(result.entry.reasons, (code) => t(`intel.reason.${code}`)));
 
-    marketResultEl.append(chips, metrics, components, bands, brandBlock, dominant, features, reasons, aiBlock('market'));
+    marketResultEl.append(chips, metrics, estimateNote, components, bands, brandBlock, dominant, features, reasons, aiBlock('market'));
   }
 
   /* ---------- Scoring templates ---------- */

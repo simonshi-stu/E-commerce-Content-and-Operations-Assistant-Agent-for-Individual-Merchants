@@ -683,6 +683,7 @@ describe('E-commerce demo server', () => {
       assert.equal(result.json.data.sample, 1);
       assert.ok(['high', 'medium', 'low'].includes(result.json.data.entry.level));
       assert.equal(result.json.data.demand.monthlyUnitsFloor, 10000);
+      assert.equal(result.json.data.demand.cumulativeUnitsEstimate, 12453 * 100);
 
       const empty = await postJson(baseUrl, '/api/intel/market', { text: '' });
       assert.equal(empty.status, 400);
