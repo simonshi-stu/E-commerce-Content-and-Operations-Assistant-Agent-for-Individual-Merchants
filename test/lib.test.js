@@ -6,8 +6,10 @@ const { describe, it } = require('node:test');
 const { MAX_IMAGE_BYTES, detectImageMime, validateInput } = require('../lib/validate');
 const { extractJson, normalizeDrafts } = require('../lib/normalize');
 const { buildReview, buildMissingInfo, complianceReminders, factCheck, scanRiskyClaims } = require('../lib/review');
-const { buildMessages } = require('../lib/prompt');
+const { buildMessages, SYSTEM_PROMPTS } = require('../lib/prompt');
 const { parsePort, parseTimeout, resolveConfigValue } = require('../lib/env');
+const { normalizeLocale, reviewMessages, uiMessage } = require('../lib/messages');
+const { compareCompetitors, priceStats, scoreProduct } = require('../lib/intel');
 
 const TINY_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 const BASE_INPUT = {
@@ -227,5 +229,159 @@ describe('env parsing', () => {
     assert.equal(resolveConfigValue([{}, { DEEPSEEK_MODEL: 'secondary' }, { AI_MODEL: 'legacy' }], 'DEEPSEEK_MODEL', 'AI_MODEL'), 'secondary');
     assert.equal(resolveConfigValue([{}, {}, { AI_MODEL: 'legacy' }], 'DEEPSEEK_MODEL', 'AI_MODEL'), 'legacy');
     assert.equal(resolveConfigValue([{}], 'DEEPSEEK_MODEL', 'AI_MODEL', 'fallback'), 'fallback');
+  });
+});
+
+describe('messages and localization', () => {
+  it('normalizes locales and falls back to Chinese', () => {
+    assert.equal(normalizeLocale('en'), 'en');
+    assert.equal(normalizeLocale('zh'), 'zh');
+    assert.equal(normalizeLocale('fr'), 'zh');
+    assert.equal(normalizeLocale(undefined), 'zh');
+  });
+
+  it('formats localized messages with parameters', () => {
+    assert.match(uiMessage('en', 'provider.timeout'), /timed out/i);
+    assert.match(uiMessage('zh', 'validation.images.count', { max: 4 }), /4/);
+    assert.equal(uiMessage('en', 'unknown.key'), 'unknown.key');
+  });
+
+  it('provides review dictionaries for both locales', () => {
+    assert.ok(reviewMessages('en').compliance.length >= 6);
+    assert.ok(reviewMessages('en').missing.price.length > 0);
+    assert.ok(reviewMessages('zh').platformCompliance.Pinduoduo.length > 0);
+  });
+
+  it('builds an English system prompt for locale en', () => {
+    assert.match(SYSTEM_PROMPTS.en, /You are an e-commerce content assistant/);
+    const messages = buildMessages({ ...normalizedBase({ locale: 'en' }) });
+    assert.match(messages[0].content, /Fact rules/);
+  });
+
+  it('localizes review output in English', () => {
+    const input = normalizedBase({ locale: 'en' });
+    const review = buildReview(input, [{
+      platform: 'Xiaohongshu',
+      title: 'Best tumbler ever',
+      body: 'Body',
+      tags: [],
+      sellingPoints: [],
+      reviewNotes: [],
+      missingInfo: []
+    }]);
+    assert.ok(review.missingInfo.some((item) => /No price/.test(item)));
+    assert.ok(review.complianceReminders.some((item) => /Advertising rules/.test(item)));
+    assert.ok(review.riskWarnings.some((warning) => warning.term.toLowerCase() === 'best'));
+  });
+});
+
+describe('intel scoring', () => {
+  const base = {
+    name: 'Tumbler',
+    price: 100,
+    unitCost: 30,
+    shippingCost: 10,
+    platformFeeRate: 5,
+    adCostPerUnit: 5,
+    targetMarginRate: 30,
+    demand: 4,
+    competition: 3,
+    differentiation: 4,
+    risk: 2
+  };
+
+  it('computes margin metrics and a weighted score', () => {
+    const { result } = scoreProduct(base, 'en');
+    assert.equal(result.metrics.platformFee, 5);
+    assert.equal(result.metrics.grossProfit, 50);
+    assert.equal(result.metrics.marginRate, 50);
+    assert.equal(result.metrics.breakEvenPrice, 47.37);
+    assert.deepEqual(result.scores, { margin: 100, demand: 75, competition: 50, differentiation: 75, risk: 75 });
+    assert.equal(result.totalScore, 80);
+    assert.equal(result.verdict, 'recommended');
+  });
+
+  it('marks loss-making candidates as avoid', () => {
+    const { result } = scoreProduct({ ...base, price: 40 }, 'en');
+    assert.ok(result.metrics.grossProfit < 0);
+    assert.equal(result.verdict, 'avoid');
+  });
+
+  it('requires a name and a positive price', () => {
+    assert.ok(scoreProduct({ name: '', price: 10 }, 'en').error);
+    assert.ok(scoreProduct({ name: 'x', price: 0 }, 'zh').error);
+  });
+});
+
+describe('competitor comparison', () => {
+  const payload = {
+    productName: 'Tumbler',
+    price: 80,
+    sellingPoints: ['24-hour heat retention', 'one-touch lid'],
+    competitors: [
+      { platform: 'Tmall', title: 'A', price: 100, sellingPoints: ['heat retention;one-touch lid;gift box'] },
+      { platform: 'Douyin', title: 'B', price: 120, sellingPoints: ['heat retention;leak proof'] },
+      { platform: 'Pinduoduo', title: 'C', price: 90, sellingPoints: ['budget friendly;one-touch lid'] }
+    ]
+  };
+
+  it('computes price stats, position, and keyword gaps', () => {
+    const { result } = compareCompetitors(payload, 'en');
+    assert.equal(result.stats.count, 3);
+    assert.equal(result.stats.min, 90);
+    assert.equal(result.stats.max, 120);
+    assert.equal(result.stats.average, 103.33);
+    assert.equal(result.stats.median, 100);
+    assert.equal(result.position, 'lowest');
+    assert.ok(result.gapPercent < 0);
+    assert.ok(result.gaps.some((gap) => gap.keyword === 'leak proof'));
+    assert.ok(result.differentiators.includes('24-hour heat retention'));
+  });
+
+  it('requires a price and at least one priced competitor', () => {
+    assert.ok(compareCompetitors({ price: 0, competitors: [{ price: 10 }] }, 'en').error);
+    assert.ok(compareCompetitors({ price: 10, competitors: [] }, 'zh').error);
+  });
+});
+
+describe('price analysis', () => {
+  it('computes the price band, break-even, and suggested price', () => {
+    const { result } = priceStats({
+      points: [
+        { label: 'mine', price: 90, type: 'own' },
+        { label: 'a', price: 100, type: 'competitor' },
+        { label: 'b', price: 120, type: 'competitor' }
+      ],
+      unitCost: 30,
+      shippingCost: 5,
+      adCostPerUnit: 5,
+      platformFeeRate: 10,
+      targetMarginRate: 25
+    }, 'en');
+    assert.equal(result.stats.count, 3);
+    assert.equal(result.stats.average, 103.33);
+    assert.equal(result.stats.median, 100);
+    assert.equal(result.groups.own.count, 1);
+    assert.equal(result.groups.competitor.count, 2);
+    assert.equal(result.costs.fixedCost, 40);
+    assert.equal(result.costs.breakEvenPrice, 44.44);
+    assert.equal(result.costs.suggestedPrice, 61.54);
+    assert.equal(result.costs.feasible, true);
+  });
+
+  it('marks impossible fee and margin targets as infeasible', () => {
+    const { result } = priceStats({
+      points: [{ label: 'x', price: 50 }],
+      unitCost: 10,
+      platformFeeRate: 60,
+      targetMarginRate: 50
+    }, 'en');
+    assert.equal(result.costs.feasible, false);
+    assert.equal(result.costs.suggestedPrice, 0);
+  });
+
+  it('requires at least one valid price point', () => {
+    assert.ok(priceStats({ points: [] }, 'zh').error);
+    assert.ok(priceStats({ points: [{ price: 0 }] }, 'en').error);
   });
 });

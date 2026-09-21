@@ -489,7 +489,9 @@ describe('E-commerce demo server', () => {
       assert.match(result.text, /电商内容助手/);
       assert.match(result.text, /name="sellingPoints"/);
       assert.match(result.text, /name="specifications"/);
-      assert.match(result.text, /id="theme-toggle"/);
+      assert.match(result.text, /id="theme-switch"/);
+      assert.match(result.text, /id="language-switch"/);
+      assert.match(result.text, /id="download-pack"/);
       assert.match(result.text, /id="dropzone"/);
     });
 
@@ -498,6 +500,88 @@ describe('E-commerce demo server', () => {
       assert.equal(result.status, 200);
       assert.match(result.headers.get('content-type') || '', /text\/javascript/);
       assert.match(result.text, /sellingPoints/);
+    });
+
+    it('serves the localization dictionaries and intel page', async () => {
+      const i18n = await request(`${baseUrl}/i18n.js`);
+      assert.equal(i18n.status, 200);
+      assert.match(i18n.text, /CROSS-BORDER CONTENT STUDIO/);
+
+      const intel = await request(`${baseUrl}/intel.html`);
+      assert.equal(intel.status, 200);
+      assert.match(intel.text, /intel\.html/);
+      assert.match(intel.text, /id="score-form"/);
+
+      const script = await request(`${baseUrl}/intel.js`);
+      assert.equal(script.status, 200);
+      assert.match(script.text, /api\/intel\/score/);
+    });
+
+    it('scores a sourcing candidate locally', async () => {
+      const result = await postJson(baseUrl, '/api/intel/score', {
+        name: 'Tumbler',
+        price: 100,
+        unitCost: 30,
+        shippingCost: 10,
+        platformFeeRate: 5,
+        adCostPerUnit: 5,
+        targetMarginRate: 30,
+        demand: 4,
+        competition: 3,
+        differentiation: 4,
+        risk: 2
+      });
+      assert.equal(result.status, 200);
+      assert.equal(result.json.data.metrics.marginRate, 50);
+      assert.equal(result.json.data.verdict, 'recommended');
+    });
+
+    it('serves local competitor and price analysis without provider access', async () => {
+      const compare = await postJson(baseUrl, '/api/intel/compare', {
+        productName: 'Tumbler',
+        price: 80,
+        sellingPoints: ['heat retention'],
+        competitors: [{ platform: 'Tmall', title: 'A', price: 100, sellingPoints: ['gift box'] }]
+      });
+      assert.equal(compare.status, 200);
+      assert.equal(compare.json.data.stats.count, 1);
+      assert.ok(compare.json.data.gaps.some((gap) => gap.keyword === 'gift box'));
+
+      const prices = await postJson(baseUrl, '/api/intel/prices', {
+        points: [{ label: 'mine', price: 90, type: 'own' }, { label: 'a', price: 120 }],
+        unitCost: 30,
+        platformFeeRate: 10,
+        targetMarginRate: 25
+      });
+      assert.equal(prices.status, 200);
+      assert.equal(prices.json.data.stats.count, 2);
+      assert.equal(prices.json.data.costs.feasible, true);
+    });
+
+    it('validates intel requests and localizes the errors', async () => {
+      const score = await postJson(baseUrl, '/api/intel/score', { name: '', price: 0 });
+      assert.equal(score.status, 400);
+      assert.equal(score.json.error.code, 'validation');
+
+      const compareEn = await postJson(baseUrl, '/api/intel/compare', { locale: 'en', price: 10, competitors: [] });
+      assert.equal(compareEn.status, 400);
+      assert.match(compareEn.json.error.message, /competitor/i);
+
+      const prices = await postJson(baseUrl, '/api/intel/prices', { points: [] });
+      assert.equal(prices.status, 400);
+
+      const unknown = await postJson(baseUrl, '/api/intel/unknown', {});
+      assert.equal(unknown.status, 404);
+    });
+
+    it('generates English drafts and review output when locale is en', async () => {
+      setMode('valid');
+      const result = await postJson(baseUrl, '/api/generate', { ...VALID_INPUT, locale: 'en' });
+      assert.equal(result.status, 200);
+      assert.equal(result.json.meta.locale, 'en');
+      const sent = JSON.parse(lastProviderRequest.body);
+      assert.match(sent.messages[0].content, /You are an e-commerce content assistant/);
+      assert.ok(result.json.data.review.missingInfo.some((item) => /No price/.test(item)));
     });
 
     it('blocks directory traversal in static paths', async () => {

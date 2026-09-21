@@ -8,13 +8,14 @@ A local, review-first content assistant that turns verified product facts into e
 - Accepts up to four product images (PNG/JPEG/WebP, one 2 MB maximum each) and sends them as OpenAI-compatible multimodal content.
 - Requests structured, platform-specific drafts: title, body, tags, and selling points, plus model review notes and missing-info hints.
 - Runs a deterministic local review layer over every generation: risky-claim scan (absolute wording, medical claims, strong promises), numeric fact checks against the supplied facts, per-platform missing-info hints, and compliance reminders.
-- Lets you edit drafts, save edits to browser-local history (up to 10 sessions), restore sessions, copy one or all drafts, and export Markdown or JSON.
-- Presents a dashboard-style interface (Chinese copy, dark/light theme) with step navigation, platform cards, drag-and-drop image input, a live review panel, and summary metrics.
+- Lets you edit drafts, save edits to browser-local history (up to 10 sessions), restore sessions, copy one or all drafts, and export Markdown, JSON, or a per-platform publish pack for manual publishing.
+- Presents a dashboard-style interface with Chinese/English switching, a three-mode theme (dark / light / follow system), step navigation, platform cards, drag-and-drop image input, a live review panel, and summary metrics.
+- Provides a second local page for Stage 2 workflows: candidate product scoring, competitor comparison, and price-band analysis based on data you enter manually.
 - Binds to `127.0.0.1` only, never writes API keys or image data to disk, and keeps draft history in `localStorage`.
 
 ## What is not included
 
-No auto-publishing, price changes, messaging, account operations, competitor or price intelligence, sales forecasting, or video generation. Generated text is a draft: always verify facts, prices, qualifications, intellectual property, and platform rules before use. The review layer is a heuristic aid, not legal, advertising, or compliance advice.
+No auto-publishing, price changes, messaging, account operations, platform scraping, competitor or price intelligence feeds, sales forecasting, or video generation. The sourcing, competitor, and price panels only compute on data you enter manually. Generated text is a draft: always verify facts, prices, qualifications, intellectual property, and platform rules before use. The review layer is a heuristic aid, not legal, advertising, or compliance advice.
 
 ## Run locally
 
@@ -23,7 +24,8 @@ Requirements: Node.js 18 or later. This project has no third-party runtime depen
 1. Copy `.env.example` to `.env.deepseek.local`.
 2. Enter your own key in `DEEPSEEK_API_KEY`. Do not commit `.env.deepseek.local`.
 3. Run `npm start`.
-4. Open <http://localhost:5178>. The interface is in Chinese; code and comments are in English.
+4. Open <http://localhost:5178>. Switch the interface language between Chinese and English in the top bar, and choose dark, light, or follow-system theme there too.
+5. Open <http://localhost:5178/intel.html> for the local sourcing, competitor, and price analysis page. It runs without a provider key.
 
 The default configuration is compatible with DeepSeek's OpenAI-compatible chat-completions API:
 
@@ -110,25 +112,59 @@ Response shape:
 
 Error codes: `validation`, `too_large`, `provider_not_configured`, `provider_error`, `provider_rejected`, `vision_unsupported`, `invalid_model_output`, `provider_unavailable`.
 
+### Local intelligence endpoints (no provider key needed)
+
+- `POST /api/intel/score` computes margin metrics and a weighted candidate score.
+- `POST /api/intel/compare` computes competitor price statistics, your price position, selling-point gaps, and differentiators.
+- `POST /api/intel/prices` computes a price band (min, max, average, median, P25, P75, standard deviation), break-even price, and a suggested price for a target margin.
+
+Example scoring request:
+
+```json
+{
+  "name": "Insulated tumbler",
+  "price": 100,
+  "unitCost": 30,
+  "shippingCost": 10,
+  "platformFeeRate": 5,
+  "adCostPerUnit": 5,
+  "targetMarginRate": 30,
+  "demand": 4,
+  "competition": 3,
+  "differentiation": 4,
+  "risk": 2
+}
+```
+
+The score response contains `metrics` (platform fee, gross profit, margin rate, break-even price), five component `scores`, `totalScore`, and a `verdict` of `recommended`, `watch`, or `avoid`. Every endpoint accepts an optional `locale` of `zh` or `en`; validation messages follow it.
+
 ## Review layer limits
 
-- The risky-claim scan is regex-based: it catches known absolute, medical, and strong-promise wording but cannot judge context.
+- The risky-claim scan is regex-based and covers Chinese and English wording: it catches known absolute, medical, and strong-promise wording but cannot judge context.
 - Numeric fact checks compare number strings against the supplied facts; they can miss Chinese numerals and unit mismatches, and they only report `needs_review`, never "safe".
+- Selling-point gap analysis normalises phrases by punctuation and lowercase, so wording variants may not match exactly.
 - Missing-info hints come from templates keyed by platform and are intentionally conservative.
 - Images are sent with the configured model; if the provider rejects them the API returns `vision_unsupported`. Configure `DEEPSEEK_VISION_MODEL` for a vision-capable model, or remove the images.
 
 ## Project layout
 
 ```
-server.js        HTTP server, static files, routing
-lib/env.js       environment files, precedence, ports and timeouts
-lib/validate.js  request validation and image checks
-lib/prompt.js    system prompt and message construction
-lib/normalize.js model output parsing and normalization
-lib/review.js    risk scan, fact checks, missing info, compliance reminders
-lib/provider.js  provider call, error mapping, response assembly
-public/          Chinese single-page interface (no build step)
-test/            node:test unit and integration suites
+server.js             HTTP server, static files, routing
+lib/env.js            environment files, precedence, ports and timeouts
+lib/messages.js       zh/en dictionaries for validation, review, and provider messages
+lib/validate.js       request validation and image checks
+lib/prompt.js         bilingual system prompts and message construction
+lib/normalize.js      model output parsing and normalization
+lib/review.js         risk scan, fact checks, missing info, compliance reminders
+lib/intel.js          product scoring, competitor comparison, price statistics
+lib/provider.js       provider call, error mapping, response assembly
+public/index.html     content studio page
+public/app.js         content studio logic
+public/intel.html     local sourcing, competitor, and price analysis page
+public/intel.js       intelligence page logic
+public/i18n.js        zh/en UI dictionaries and static text binding
+public/styles.css     shared design system (dark/light)
+test/                 node:test unit and integration suites
 ```
 
 ## Tests
@@ -139,11 +175,11 @@ The suite uses Node's built-in `node:test` runner, so there are no extra depende
 npm test
 ```
 
-The unit tests cover validation rules, image checks, output normalization, review rules, prompt building, and env parsing. Integration tests start the real server against a mock OpenAI-compatible provider and cover configuration precedence, structured and multimodal requests, provider errors and timeouts, malformed model output, review output, static file serving, directory-traversal rejection, and unsupported methods.
+The unit tests cover validation rules, image checks, output normalization, review rules, bilingual messages, prompt building, env parsing, and the intel calculators. Integration tests start the real server against a mock OpenAI-compatible provider and cover configuration precedence, structured and multimodal requests, provider errors and timeouts, malformed model output, review output, English-locale generation, the local intelligence endpoints, static file serving, directory-traversal rejection, and unsupported methods. The suite currently contains 67 tests.
 
 ## Roadmap
 
-Later stages may add product discovery, competitor and price intelligence, and reviewed publishing workflows. None of those are implemented here, and nothing in this repository publishes content or changes prices automatically.
+Stage 2 is implemented locally: candidate product scoring, competitor comparison, price-band analysis, and a manual publish pack that you review before publishing by hand. Possible later stages include import/export connectors for data you own, saved prompt templates per category, and richer pricing scenarios. Nothing in this repository publishes content, changes prices, or operates accounts automatically.
 
 ## Contributing and security
 

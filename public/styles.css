@@ -490,3 +490,98 @@ button { font: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
 }
+
+/* ---------- Top bar nav and segmented switches ---------- */
+.topbar-nav { display: none; gap: 4px; }
+.nav-link {
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: var(--muted);
+  font-size: .84rem;
+  font-weight: 700;
+  padding: 7px 12px;
+  text-decoration: none;
+  transition: color .18s ease, border-color .18s ease, background .18s ease;
+}
+.nav-link:hover { border-color: var(--border); color: var(--text); }
+.nav-link.is-active { background: var(--panel-2); border-color: var(--border-strong); color: var(--text); }
+.segmented {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: inline-flex;
+  padding: 2px;
+}
+.segmented button {
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: .74rem;
+  font-weight: 700;
+  padding: 5px 9px;
+  transition: color .18s ease, background .18s ease;
+}
+.segmented button:hover { color: var(--text); }
+.segmented button.is-active { background: var(--gradient); color: #fff; }
+
+/* ---------- Intel page ---------- */
+.intel-grid { display: grid; gap: 22px; }
+.intel-panel { grid-column: 1 / -1; }
+.intel-subhead { margin: 18px 0 10px; }
+.intel-subhead h3 { font-size: 1rem; margin: 0; }
+.intel-rows { display: grid; gap: 10px; }
+.intel-row {
+  align-items: center;
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 150px minmax(0, 1.5fr) 110px minmax(0, 1.4fr) auto;
+  padding: 10px;
+}
+.intel-row.intel-row-price { grid-template-columns: minmax(0, 1fr) 150px 110px 140px auto; }
+.intel-row input, .intel-row select { padding: 8px 10px; }
+.result-area { margin-top: 18px; }
+.result-head { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin-bottom: 14px; }
+.result-head h3 { margin: 0; }
+.result-block { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 14px; }
+.result-block h4 { font-size: .9rem; margin: 0 0 10px; }
+.metric-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.metric { background: var(--field-bg); border: 1px solid var(--border); border-radius: 12px; display: grid; gap: 4px; padding: 12px 14px; }
+.metric-label { color: var(--faint); font-size: .72rem; letter-spacing: .04em; }
+.metric-value { font-size: 1.1rem; font-weight: 800; }
+.verdict { border-radius: 999px; display: inline-block; font-size: .78rem; font-weight: 800; padding: 4px 12px; }
+.verdict.recommended { background: rgba(52, 211, 153, .16); color: var(--success); }
+.verdict.watch { background: rgba(251, 191, 36, .16); color: var(--warning); }
+.verdict.avoid { background: rgba(248, 113, 113, .16); color: var(--danger); }
+.score-list { display: grid; gap: 8px; margin-top: 14px; }
+.score-row { align-items: center; display: grid; font-size: .82rem; gap: 10px; grid-template-columns: 96px minmax(0, 1fr) 42px; }
+.score-track { background: var(--field-bg); border: 1px solid var(--border); border-radius: 999px; height: 8px; overflow: hidden; }
+.score-fill { background: var(--gradient); height: 100%; }
+.keyword-list { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.keyword-list li { background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; font-size: .78rem; padding: 4px 10px; }
+.intel-candidate {
+  align-items: center;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding: 12px 14px;
+}
+
+@media (min-width: 900px) {
+  .topbar-nav { display: flex; }
+}
+@media (max-width: 860px) {
+  .intel-row, .intel-row.intel-row-price { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .segmented button { padding: 5px 7px; }
+}

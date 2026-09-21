@@ -5,6 +5,8 @@ const http = require('node:http');
 const path = require('node:path');
 
 const { loadConfig } = require('./lib/env');
+const { compareCompetitors, priceStats, scoreProduct } = require('./lib/intel');
+const { normalizeLocale } = require('./lib/messages');
 const { MAX_BODY_BYTES, validateInput } = require('./lib/validate');
 const { generateContent } = require('./lib/provider');
 
@@ -122,6 +124,22 @@ async function handleRequest(req, res) {
       model: current.model,
       visionConfigured: Boolean(current.visionModel)
     });
+  }
+  if (req.method === 'POST' && url.pathname.startsWith('/api/intel/')) {
+    try {
+      const body = await readJson(req);
+      const locale = normalizeLocale(body && body.locale);
+      let outcome;
+      if (url.pathname === '/api/intel/score') outcome = scoreProduct(body || {}, locale);
+      else if (url.pathname === '/api/intel/compare') outcome = compareCompetitors(body || {}, locale);
+      else if (url.pathname === '/api/intel/prices') outcome = priceStats(body || {}, locale);
+      else return sendError(res, 404, 'not_found', 'Not found.');
+      if (outcome.error) return sendError(res, 400, 'validation', outcome.error);
+      return sendJson(res, 200, { data: outcome.result });
+    } catch (error) {
+      if (error.code === 'too_large') return sendError(res, 413, 'too_large', 'Request body is too large.');
+      return sendError(res, 400, error.code || 'invalid_json', 'Request body must be valid JSON.');
+    }
   }
   if (req.method === 'POST' && url.pathname === '/api/generate') {
     try {
