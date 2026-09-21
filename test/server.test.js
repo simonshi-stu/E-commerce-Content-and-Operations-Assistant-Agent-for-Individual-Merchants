@@ -666,6 +666,8 @@ describe('E-commerce demo server', () => {
       assert.equal(result.json.data.summary.total, 2);
       assert.ok(Array.isArray(result.json.data.rows));
       assert.ok(['recommended', 'watch', 'avoid'].includes(result.json.data.rows[0].verdict));
+      assert.ok(result.json.data.rows[0].marketFitScore >= 0);
+      assert.ok(result.json.data.summary.topMarketFit);
 
       const empty = await postJson(baseUrl, '/api/intel/batch', { text: '' });
       assert.equal(empty.status, 400);

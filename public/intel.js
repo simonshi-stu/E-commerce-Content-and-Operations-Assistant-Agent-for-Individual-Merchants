@@ -1104,15 +1104,19 @@
     if (!batchResult) return;
     const summary = batchResult.summary;
     const chips = el('div', 'review-summary');
+    const topNames = summary.topMarketFit && summary.topMarketFit.length
+      ? summary.topMarketFit.map((item) => `${item.name} (${item.marketFitScore})`).join(', ')
+      : '-';
     chips.append(
       el('span', 'summary-chip', { text: t('intel.batch.summary', summary) }),
       el('span', 'summary-chip', { text: `${t('intel.batch.avgMargin')}: ${fmt(summary.averageMarginRate)}%` }),
-      el('span', 'summary-chip', { text: `${t('intel.batch.avgScore')}: ${fmt(summary.averageScore)}` })
+      el('span', 'summary-chip', { text: `${t('intel.batch.avgScore')}: ${fmt(summary.averageScore)}` }),
+      el('span', 'summary-chip', { text: t('intel.batch.topMarket', { names: topNames }) })
     );
 
     const table = el('table', 'result-table');
     const headRow = el('tr');
-    for (const key of ['intel.batch.rank', 'intel.batch.name', 'intel.batch.verdict', 'intel.batch.margin', 'intel.batch.score', 'intel.batch.breakEven', 'intel.batch.confidence']) {
+    for (const key of ['intel.batch.rank', 'intel.batch.name', 'intel.batch.verdict', 'intel.batch.margin', 'intel.batch.score', 'intel.batch.marketFit', 'intel.batch.naFit', 'intel.batch.breakEven', 'intel.batch.confidence']) {
       headRow.append(el('th', null, { text: t(key) }));
     }
     const thead = el('thead');
@@ -1132,6 +1136,14 @@
       tr.append(verdictCell);
       tr.append(el('td', null, { text: row.verdict === 'invalid' ? '-' : `${fmt(row.marginRate)}%` }));
       tr.append(el('td', null, { text: row.verdict === 'invalid' ? '-' : String(row.totalScore) }));
+      tr.append(el('td', null, { text: row.verdict === 'invalid' ? '-' : String(row.marketFitScore) }));
+      const naCell = el('td');
+      if (row.verdict === 'invalid') {
+        naCell.append(document.createTextNode('-'));
+      } else {
+        naCell.append(el('span', `cred-badge ${row.northAmericaFit}`, { text: t(`intel.batch.naFit.${row.northAmericaFit}`) }));
+      }
+      tr.append(naCell);
       tr.append(el('td', null, { text: row.verdict === 'invalid' ? '-' : fmt(row.breakEvenPrice) }));
       tr.append(el('td', null, { text: row.verdict === 'invalid' ? '-' : `${row.confidence.score} (${t(`intel.credibility.level.${row.confidence.level}`)})` }));
       body.append(tr);

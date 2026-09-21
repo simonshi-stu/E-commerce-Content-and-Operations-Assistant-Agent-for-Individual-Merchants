@@ -378,6 +378,12 @@
       'intel.batch.breakEven': '保本价',
       'intel.batch.confidence': '可信度',
       'intel.batch.invalid': '数据不足',
+      'intel.batch.marketFit': '市场匹配',
+      'intel.batch.naFit': '北美匹配',
+      'intel.batch.naFit.high': '高',
+      'intel.batch.naFit.medium': '中',
+      'intel.batch.naFit.low': '低',
+      'intel.batch.topMarket': '北美潜力 Top：{names}',
       'intel.savedAt': '保存时间'
     },
     en: {
@@ -756,6 +762,12 @@
       'intel.batch.breakEven': 'Break-even',
       'intel.batch.confidence': 'Confidence',
       'intel.batch.invalid': 'Invalid',
+      'intel.batch.marketFit': 'Market fit',
+      'intel.batch.naFit': 'NA fit',
+      'intel.batch.naFit.high': 'High',
+      'intel.batch.naFit.medium': 'Medium',
+      'intel.batch.naFit.low': 'Low',
+      'intel.batch.topMarket': 'NA potential top: {names}',
       'intel.savedAt': 'Saved at'
     }
   };

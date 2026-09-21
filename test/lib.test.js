@@ -763,6 +763,10 @@ describe('candidate batch assessment', () => {
     assert.equal(result.summary.recommended, 1);
     assert.equal(result.summary.invalid, 1);
     assert.ok(result.summary.averageMarginRate > 0);
+    assert.equal(result.rows[0].marketFitScore, 81);
+    assert.equal(result.rows[0].northAmericaFit, 'high');
+    assert.ok(result.summary.topMarketFit.length > 0);
+    assert.equal(result.summary.topMarketFit[0].name, 'Good');
   });
 
   it('requires input rows', () => {
