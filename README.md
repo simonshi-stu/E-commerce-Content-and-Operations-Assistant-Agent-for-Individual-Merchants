@@ -1,73 +1,68 @@
 # E-commerce Content and Operations Assistant Agent for Individual Merchants
 
-A small, local demo that turns a product description into editable draft copy for selected platforms. It is intended for portfolio review and local experimentation, not production use.
+面向个人商家的电商内容与工作辅助项目。本仓库只提供一个精简的公开演示和项目概览，**不是完整产品的开源发布，也不代表生产环境能力已经完成**。
 
-## What it does
+## 项目思路
 
-- Collects a product name, description, tone, and one or more target platforms.
-- Sends the text to a model provider configured by you.
-- Requests structured, platform-specific copy drafts.
-- Lets you copy an editable draft, then keeps up to ten recent local draft sessions in your browser for viewing or restoring.
+电商工作往往需要在不同工具之间整理资料、准备内容、检查结果。本项目探索将这些操作组织为统一的工作体验，让用户能够查看结果、修订内容，再导出使用。
 
-## What is not included
+设计方向包括：
 
-This public demo does **not** include product discovery, sales/ROI/margin forecasting, real-time competitor or price intelligence, advertising automation, price changes, publishing automation, account permissions, private prompts, internal workflow designs, data connectors, or video generation.
+- 面向不同品类和使用场景，而不是绑定单一商品。
+- 保留用户审阅与修订环节，生成内容不能替代事实核对。
+- 用标准接口连接合适的外部服务，避免依赖某一家工具。
+- 逐步扩展图文、页面和视频等交付形式；这些是发展方向，不是本公开演示的功能承诺。
 
-Generated text is a draft. You must review facts, product claims, price, compliance requirements, intellectual-property rights, and platform rules before using it. Do not treat the output as business, legal, advertising, or platform-policy advice.
+## 大体架构
 
-## Run locally
+仅公开通用的软件分层，不披露内部业务实现：
 
-Requirements: Node.js 18 or later. This project has no third-party runtime dependencies.
-
-1. Copy `.env.example` to `.env.deepseek.local`.
-2. Enter your own key in `DEEPSEEK_API_KEY`. Do not commit `.env.deepseek.local`.
-3. Run `npm start`.
-4. Open <http://localhost:5178>.
-
-The default configuration is compatible with DeepSeek's OpenAI-compatible chat-completions API:
-
-```ini
-DEEPSEEK_API_KEY=replace_with_your_own_key
-DEEPSEEK_MODEL=deepseek-flash
-DEEPSEEK_BASE_URL=https://api.deepseek.com
-DEEPSEEK_TIMEOUT_MS=15000
-PORT=5178
+```text
+用户界面
+   ↕
+应用服务
+   ↕
+外部服务接口 / 文件输入输出
 ```
 
-Set `PORT=0` to let the operating system choose a free port; the server prints the port it bound to.
+公开演示采用轻量 Web 界面和 Node.js 服务。这里的架构图是概念说明，不是内部模块图、分析流程或完整实现蓝图。
 
-Configuration precedence is: values supplied by the parent process, then `.env.deepseek.local`, then a legacy `.env`. Within each layer, `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`, `DEEPSEEK_BASE_URL`, and `DEEPSEEK_TIMEOUT_MS` take precedence over compatible `AI_API_KEY`, `AI_MODEL`, `AI_BASE_URL`, and `AI_TIMEOUT_MS` names. The generic `AI_*` names remain supported for compatibility. `DEEPSEEK_TIMEOUT_MS` is the per-request provider timeout in milliseconds (default `15000`); raise it if you point `DEEPSEEK_MODEL` at a slower reasoning model. Never paste a key into source code, issues, screenshots, or commits.
+## 公开演示范围
 
-The server sends the product text you enter to the third-party provider you configure. Recent local sessions, including form data and drafts, are stored in your browser until you clear them. Review that provider's terms, data handling, and pricing before use. Do not enter trade secrets, personal data, or information you are not authorized to share. This demo should not be exposed directly to the public internet.
+当前公开版本用于本地体验基础的商品描述输入、内容草稿生成与人工编辑。使用者需要自行配置服务，不应直接将演示部署为公开生产服务。
 
-## API
+更完整的业务能力在非公开环境中开发和验证。公开演示与内部版本的功能、依赖和实现可能不同，不能据此推断内部版本已具备某项能力。
 
-- `GET /api/health` reports whether a usable API key is configured; it never returns the key.
-- `POST /api/generate` accepts `productName`, `productDescription`, `platforms`, and optional `tone`, then returns structured drafts.
+## 参考项目与资料
 
-Example request:
+以下项目供理解通用技术能力与评估工具时参考。**列入清单不表示已经集成、复制代码、取得合作关系，或验证其适用于生产环境。**
 
-```json
-{
-  "productName": "Insulated tumbler",
-  "productDescription": "A stainless-steel tumbler for daily drinks.",
-  "platforms": ["Xiaohongshu", "Douyin"],
-  "tone": "clear and friendly"
-}
-```
+- [Playwright](https://github.com/microsoft/playwright)：浏览器测试与页面展示检查。
+- [Docling](https://github.com/docling-project/docling)：文档结构与格式处理。
+- [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)：图片文字识别。
+- [ExcelJS](https://github.com/exceljs/exceljs)：表格文件读写。
+- [FFmpeg](https://github.com/FFmpeg/FFmpeg)：通用音视频处理。
+- [Remotion](https://github.com/remotion-dev/remotion)：程序化视频制作参考。
 
-## Tests
+采用第三方组件前，需要分别核对代码、模型、素材及服务条款。Remotion 使用自己的许可证；FFmpeg 的许可要求取决于构建方式和组件。参考链接不构成统一的商用许可保证。
 
-The suite uses Node's built-in `node:test` runner, so there are no extra dependencies.
+## 非公开边界
 
-```sh
-npm test
-```
+本仓库不提供：
 
-Each test starts the real server against a mock OpenAI-compatible provider. The suite covers configuration precedence and defaults, request validation, provider error and timeout handling, malformed model output, static file serving, directory-traversal rejection, and unsupported methods.
+- 数据集、真实业务资料、客户或供应商信息。
+- 非公开网站页面、接口细节及业务实现。
+- 核心设计、内部分析拆解、专用规则与算法。
+- Agent 定义、协作方式、内部提示词与记忆实现。
+- 内部规划、执行记录、测试证据及未发布代码。
+- 密钥、账号配置、运行数据库与实际生成素材。
 
-## Contributing and security
+这不是一个可以完整公开的项目。公开文档只用于说明总体方向和通用参考，不授权访问或使用内部版本。
 
-Small, reproducible issues and pull requests are welcome. Please do not include keys, customer data, private prompts, or non-public business information in an issue. Report potential security problems privately to the repository owner rather than posting sensitive details publicly.
+## 使用与安全
 
-Licensed under the [MIT License](LICENSE).
+生成结果属于草稿。使用前应检查商品事实、宣传主张、知识产权、平台规则和适用要求。不得把输出当作确定的经营结果或专业意见。
+
+配置的外部服务可能接收用户输入；使用前应了解其数据处理与费用条款。不要向公开演示、Issue、Pull Request 或截图提供密钥和敏感业务资料。
+
+本仓库现有公开代码的许可见 [LICENSE](LICENSE)。该许可不适用于未发布的内部代码、设计、业务资料或数据。
