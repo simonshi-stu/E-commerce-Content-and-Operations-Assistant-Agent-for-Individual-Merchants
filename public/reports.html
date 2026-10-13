@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Amazon美国站竞品拆解与永宝产品进入潜力 Excel 报告工作流。">
+    <meta name="color-scheme" content="dark light">
+    <title>报告中心 · Report Factory</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body class="report-page">
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="bg-glow glow-a" aria-hidden="true"></div>
+    <div class="bg-glow glow-b" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" width="26" height="26" fill="none">
+              <path d="M16 2.8 27.4 9.4v13.2L16 29.2 4.6 22.6V9.4L16 2.8Z" stroke="url(#bg3)" stroke-width="1.8"/>
+              <circle cx="16" cy="16" r="4.6" stroke="url(#bg3)" stroke-width="1.8"/>
+              <path d="M16 11.4V6.2M16 25.8v-5.2M11.6 16H6.4M25.6 16h-5.2" stroke="url(#bg3)" stroke-width="1.6" stroke-linecap="round"/>
+              <defs>
+                <linearGradient id="bg3" x1="4" y1="3" x2="28" y2="29" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#818CF8"/><stop offset="1" stop-color="#22D3EE"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </span>
+          <span class="brand-text">
+            <strong data-i18n="brand.name">电商内容助手</strong>
+            <small data-i18n="brand.tag">CROSS-BORDER CONTENT STUDIO</small>
+          </span>
+        </a>
+        <nav class="topbar-nav" aria-label="Sections">
+          <a href="/" class="nav-link" data-i18n="nav.content">内容生成</a>
+          <a href="/intel.html" class="nav-link" data-i18n="nav.intel">选品与情报</a>
+          <a href="/reports.html" class="nav-link is-active" data-i18n="nav.reports">报告中心</a>
+        </nav>
+        <div class="topbar-meta">
+          <span id="health-chip" class="chip chip-muted">
+            <span class="chip-dot" aria-hidden="true"></span>
+            <span id="health-text" data-i18n="health.checking">检测中…</span>
+          </span>
+          <span class="chip chip-muted chip-local" data-i18n="privacy.local">127.0.0.1 · 数据不出本机</span>
+          <div class="segmented" id="theme-switch" role="group" data-i18n-aria-label="switch.theme">
+            <button type="button" data-theme-mode="dark" data-i18n="theme.dark">暗色</button>
+            <button type="button" data-theme-mode="light" data-i18n="theme.light">明亮</button>
+            <button type="button" data-theme-mode="auto" data-i18n="theme.auto">跟随系统</button>
+          </div>
+          <div class="segmented" id="language-switch" role="group" data-i18n-aria-label="switch.language">
+            <button type="button" data-locale="zh">中文</button>
+            <button type="button" data-locale="en">EN</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="page-shell report-shell">
+      <section class="hero report-hero">
+        <div class="hero-copy">
+          <p class="eyebrow" data-report="eyebrow">STAGE 3 · REPORT FACTORY</p>
+          <h1><span data-report="titleLead">把公开证据，</span><span class="grad" data-report="titleAccent">整理成可复用的 Excel 工作台</span></h1>
+          <p class="hero-sub" data-report="subtitle">沿用已经验证过的报告逻辑：公开前台取证、市场组清洗、同款归并、产品级拆分、合规硬门槛、评分排序和多 Sheet 排版，一次生成两份可下载工作簿。</p>
+        </div>
+        <div class="report-hero-mark" aria-hidden="true">
+          <span>01</span><i></i><span>02</span><i></i><span>03</span>
+        </div>
+      </section>
+
+      <section id="report-workbench" class="panel report-workbench" data-preview-state="none" aria-labelledby="report-workbench-title">
+        <div class="report-workbench-main">
+          <div class="panel-head">
+            <h2 id="report-workbench-title"><span class="panel-index">01</span><span data-report="workbenchTitle">通用报告任务</span><small>REPORT JOBS</small></h2>
+            <span id="report-job-state" class="chip chip-muted" data-report="jobIdle">未开始</span>
+          </div>
+          <p class="panel-hint report-lead" data-report="workbenchHint">可上传供应商 PDF，也可直接创建无 PDF 手工建档任务；每个截图型号/配置单独录入成本并人工确认后，再进行 Amazon 研究和逐款定价。</p>
+
+          <div class="report-entry-tabs" role="tablist">
+            <button id="report-entry-pdf" class="report-entry-tab is-active" type="button" role="tab" aria-selected="true" data-report="entryPdf">PDF 目录分析</button>
+            <button id="report-entry-track" class="report-entry-tab" type="button" role="tab" aria-selected="false" data-report="entryTrack">赛道 / 无 PDF 手工建档</button>
+          </div>
+
+          <div id="report-pdf-entry" class="report-entry-body">
+            <label class="report-dropzone" id="report-dropzone" for="report-pdf-input">
+              <input id="report-pdf-input" type="file" accept="application/pdf,.pdf">
+              <span class="report-dropzone-title" data-report="dropTitle">选择或拖入 PDF 产品目录</span>
+              <span class="report-dropzone-hint" data-report="dropHint">只在本机解析；文本型 PDF 可直接拆解，扫描件会标记为需要人工确认，不会伪造内容。</span>
+            </label>
+            <p id="report-upload-status" class="status" aria-live="polite"></p>
+          </div>
+
+          <div id="report-track-entry" class="report-entry-body" hidden>
+            <div class="field-grid report-track-grid">
+              <label><span data-report="fieldCategory">品类</span><input id="report-track-category" type="text" placeholder="如：内衣 / 单车 / 汽车配件 / 玩偶"></label>
+              <label><span data-report="fieldCountry">目标国家</span><input id="report-track-country" type="text" value="美国"></label>
+              <label><span data-report="fieldMarketplace">目标站点</span><input id="report-track-marketplace" type="text" value="Amazon.com"></label>
+              <label><span data-report="fieldAudience">受众</span><input id="report-track-audience" type="text" placeholder="成人 / 儿童 / 宠物等"></label>
+              <label><span data-report="fieldPrice">价格带</span><input id="report-track-price" type="text" placeholder="如：US$20-60"></label>
+            </div>
+            <div class="field-grid report-track-grid">
+              <label><span data-report="fieldQuestions">研究问题（每行一条）</span><textarea id="report-track-questions" rows="3" placeholder="该品类的价格带、差评集中点、进入门槛"></textarea></label>
+              <label><span data-report="fieldGroups">市场分组（每行：分组名 | 关键词1,关键词2）</span><textarea id="report-track-groups" rows="3" placeholder="成人通勤 | commuter helmet,bike helmet"></textarea></label>
+            </div>
+            <div class="button-row">
+              <button id="report-track-create" class="primary-button" type="button"><span class="button-label" data-report="trackCreate">创建赛道 / 手工产品任务</span><span class="button-sub">TRACK ANALYSIS</span></button>
+            </div>
+            <p id="report-track-status" class="status" aria-live="polite"></p>
+          </div>
+
+          <div class="report-job-lookup">
+            <label><span>载入已有任务（独立审核会话输入制作方提供的任务 ID）</span><input id="report-audit-job-id" type="text" autocomplete="off" placeholder="report-…"></label>
+            <button id="report-audit-load" class="quiet-button" type="button">载入审核任务</button>
+            <p id="report-audit-load-status" class="status" aria-live="polite"></p>
+          </div>
+
+          <div id="report-job-analysis" class="report-job-analysis" hidden>
+            <h3 data-report="analysisTitle">初步拆解与人工确认</h3>
+            <div id="report-job-meta" class="report-job-meta"></div>
+            <div id="report-job-categories" class="report-job-block"></div>
+            <div id="report-job-products" class="report-job-block"></div>
+            <div id="report-job-brief" class="report-job-block"></div>
+            <div class="button-row report-job-actions">
+              <button id="report-job-confirm" class="primary-button" type="button"><span class="button-label" data-report="confirm">确认并继续</span><span class="button-sub">CONFIRM</span></button>
+              <button id="report-job-research" class="quiet-button" type="button" disabled><span data-report="research">研究准备</span><span class="button-sub">RESEARCH</span></button>
+              <button id="report-job-build" class="quiet-button" type="button" disabled><span data-report="generate">生成 Excel</span><span class="button-sub">BUILD</span></button>
+            </div>
+            <p id="report-job-status" class="status" aria-live="polite"></p>
+          </div>
+
+          <section id="report-audit-panel" class="report-audit-panel" hidden aria-labelledby="report-audit-title">
+            <div class="panel-head">
+              <h3 id="report-audit-title">独立审核与交付门</h3>
+              <span id="report-audit-status" class="chip chip-muted">待审核</span>
+            </div>
+            <p id="report-audit-meta" class="report-audit-meta"></p>
+            <p class="report-job-warning">审核须在另一个浏览器会话完成；核对当前版本的事实/来源、链接/ASIN/图片、评论原文/星级及结论边界。审核时间由服务器记录。通过前下载门关闭。</p>
+            <div class="field-grid report-audit-form">
+              <label><span>独立审核人姓名（必填）</span><input id="report-audit-reviewer" type="text" maxlength="120" autocomplete="name" required></label>
+              <label class="report-audit-issues"><span>问题 / 退回理由（每行一条；退回必填）</span><textarea id="report-audit-issues" rows="3" maxlength="4000"></textarea></label>
+              <label id="report-audit-repair-wrap" class="report-audit-issues" hidden><span>修复说明（重新提交必填）</span><textarea id="report-audit-repair-notes" rows="3" maxlength="4000"></textarea></label>
+            </div>
+            <div class="report-audit-gates" role="group" aria-label="独立审核检查项">
+              <label><input type="checkbox" data-audit-gate="facts"><span>事实与原始证据逐项匹配</span></label>
+              <label><input type="checkbox" data-audit-gate="links"><span>商品/评论链接、ASIN、变体与图片匹配</span></label>
+              <label><input type="checkbox" data-audit-gate="comments"><span>评论原文、星级分布与摘要分层正确</span></label>
+              <label><input type="checkbox" data-audit-gate="conclusions"><span>结论、样本边界和证据风险表达准确</span></label>
+            </div>
+            <div class="button-row report-audit-actions">
+              <button id="report-audit-approve" class="primary-button" type="button">审核通过并开放下载</button>
+              <button id="report-audit-return" class="quiet-button" type="button">退回制作者修复</button>
+            </div>
+            <p id="report-audit-action-status" class="status" aria-live="polite"></p>
+            <details class="report-audit-history-wrap">
+              <summary>审核与修复历史</summary>
+              <ol id="report-audit-history" class="report-audit-history"></ol>
+            </details>
+          </section>
+        </div>
+
+        <aside id="report-preview-panel" class="report-preview-panel" hidden aria-labelledby="report-preview-title">
+          <div class="panel-head">
+            <h2 id="report-preview-title"><span data-report="previewTitle">Excel 在线预览</span><small id="report-preview-version">-</small></h2>
+            <a id="report-preview-download" class="quiet-button report-preview-download disabled" href="#"><span data-report="downloadExcel">下载 Excel</span></a>
+          </div>
+          <div id="report-preview-sheets" class="report-preview-sheets" role="tablist"></div>
+          <div id="report-preview-meta" class="report-preview-meta"></div>
+          <div id="report-preview-viewport" class="report-preview-viewport">
+            <div id="report-preview-table" class="report-preview-table"></div>
+          </div>
+          <div id="report-preview-images" class="report-preview-images" hidden aria-label="当前工作表图片证据"></div>
+          <div class="report-preview-foot">
+            <button id="report-preview-more" class="quiet-button" type="button" hidden><span data-report="loadMore">加载更多</span></button>
+            <span id="report-preview-status" class="report-preview-status" aria-live="polite"></span>
+          </div>
+        </aside>
+      </section>
+
+      <section class="report-layout">
+        <section class="panel report-control-panel" aria-labelledby="report-control-title">
+          <div class="panel-head">
+            <h2 id="report-control-title"><span class="panel-index">02</span><span data-report="controlTitle">生成设置</span><small>BUILD CONTROL</small></h2>
+            <span id="report-job-chip" class="chip chip-muted" data-report="idle">等待任务</span>
+          </div>
+          <p class="panel-hint report-lead" data-report="controlHint">默认复用已经抓取的 Amazon 前台证据，适合快速重新排版。需要更新市场数据时，再开启重新采集。</p>
+          <div class="report-options">
+            <label class="report-option">
+              <input id="report-refresh-amazon" type="checkbox" aria-label="重新采集 Amazon 商品页">
+              <span class="report-option-copy"><strong data-report="refreshAmazon">重新采集 Amazon 商品页</strong><small data-report="refreshAmazonHint">只访问 amazon.com 公开商品详情页，不登录、不访问后台；12 款商品约需数十秒。</small></span>
+            </label>
+            <label class="report-option">
+              <input id="report-refresh-summary" type="checkbox" aria-label="重新生成竞品评价归纳">
+              <span class="report-option-copy"><strong data-report="refreshSummary">重新生成竞品评价归纳</strong><small data-report="refreshSummaryHint">使用商品页公开 Customers say 和评价主题；需要配置 DeepSeek API Key。</small></span>
+            </label>
+          </div>
+          <div class="field-grid report-settings-grid">
+            <label><span data-report="delayLabel">公开页请求间隔（毫秒）</span><input id="report-delay" type="number" min="0" max="15000" step="100" value="1500"></label>
+            <label><span data-report="observedLabel">观察日期</span><input id="report-observed" type="date" aria-label="观察日期"></label>
+          </div>
+          <div class="button-row report-build-row">
+            <button id="report-build" class="primary-button" type="button"><span class="button-label" data-report="build">生成两份 Excel 报告</span><span class="button-sub">BUILD XLSX</span></button>
+            <button id="report-refresh-status" class="quiet-button" type="button" data-report="refresh">刷新状态</button>
+          </div>
+          <p id="report-status" class="status" aria-live="polite"></p>
+          <div class="report-boundary-note">
+            <span class="boundary-icon">i</span>
+            <span data-report="boundary">数据边界：只使用 Amazon.com 公开前台；评论列表页要求登录时不绕过；销量只显示公开购买标签和评论数 ÷ 0.01 的粗估，不伪造后台销量。</span>
+          </div>
+        </section>
+
+        <section class="panel report-progress-panel" aria-labelledby="report-progress-title">
+          <div class="panel-head">
+            <h2 id="report-progress-title"><span class="panel-index">03</span><span data-report="progressTitle">工作流进度</span><small>PIPELINE</small></h2>
+            <span id="report-progress-text" class="panel-hint">0 / 5</span>
+          </div>
+          <div class="report-progress-track"><span id="report-progress-fill"></span></div>
+          <ol id="report-stages" class="report-stages"></ol>
+          <p class="report-progress-foot" data-report="progressFoot">每一步都保留可核验的来源与口径，最后才进入 Excel 排版。</p>
+        </section>
+      </section>
+
+      <section id="report-workflow-audit" class="panel report-audit-panel report-workflow-audit" hidden aria-labelledby="report-workflow-audit-title">
+        <div class="panel-head">
+          <h2 id="report-workflow-audit-title">报告包独立审核与交付门</h2>
+          <span id="report-workflow-audit-status" class="chip chip-muted">待审核</span>
+        </div>
+        <p id="report-workflow-audit-meta" class="report-audit-meta"></p>
+        <p class="report-job-warning">本审核覆盖页面下方的竞品拆解与产品进入评估工作簿。事实/来源、链接/ASIN/变体/图片、评论与星级、结论边界均需独立复核。审核时间由服务器记录；通过前所有报告下载 API 均阻断。退回后在制作会话填写修复说明并重新生成。</p>
+        <div class="field-grid report-audit-form">
+          <label><span>独立审核人姓名（必填）</span><input id="report-workflow-reviewer" type="text" maxlength="120" autocomplete="name" required></label>
+          <label class="report-audit-issues"><span>问题 / 退回理由（每行一条；退回必填）</span><textarea id="report-workflow-issues" rows="3" maxlength="4000"></textarea></label>
+          <label id="report-workflow-repair-wrap" class="report-audit-issues" hidden><span>修复说明（重新提交必填）</span><textarea id="report-workflow-repair-notes" rows="3" maxlength="4000"></textarea></label>
+        </div>
+        <div id="report-workflow-gates" class="report-audit-gates" role="group" aria-label="报告包独立审核检查项">
+          <label><input type="checkbox" data-workflow-gate="facts"><span>事实与原始证据逐项匹配</span></label>
+          <label><input type="checkbox" data-workflow-gate="links"><span>链接、ASIN、变体与图片匹配</span></label>
+          <label><input type="checkbox" data-workflow-gate="comments"><span>评论原文、星级与摘要层次正确</span></label>
+          <label><input type="checkbox" data-workflow-gate="conclusions"><span>结论、样本边界和证据风险准确</span></label>
+        </div>
+        <div class="button-row report-audit-actions">
+          <button id="report-workflow-approve" class="primary-button" type="button">审核通过并开放下载</button>
+          <button id="report-workflow-return" class="quiet-button" type="button">退回制作者修复</button>
+        </div>
+        <p id="report-workflow-audit-action-status" class="status" aria-live="polite"></p>
+        <details class="report-audit-history-wrap">
+          <summary>审核与修复历史</summary>
+          <ol id="report-workflow-audit-history" class="report-audit-history"></ol>
+        </details>
+      </section>
+
+      <p class="report-archive-note" data-report="archiveNote">下方数据底座、评分及 A/B 工作簿卡片属于 2026-09-22 历史报告包，不是当前 9 款 / 16 配置市场准入结论；本次请以已载入任务的配置级准入表和证据预览为准。</p>
+
+      <section id="report-overview" class="panel report-overview-panel" aria-labelledby="overview-title">
+        <div class="panel-head">
+          <h2 id="overview-title"><span class="panel-index">04</span><span data-report="overviewTitle">当前数据底座</span><small>DATA FOUNDATION</small></h2>
+          <span id="report-observed-chip" class="chip chip-muted">-</span>
+        </div>
+        <div id="report-source-metrics" class="metric-grid report-metrics"></div>
+        <div class="report-data-columns">
+          <div><h3 data-report="marketFlowTitle">市场拆分结果</h3><div id="report-market-table" class="report-table-wrap"></div></div>
+          <div><h3 data-report="scoreFlowTitle">产品决策结果</h3><div id="report-score-summary"></div></div>
+        </div>
+      </section>
+
+      <section id="report-downloads" class="report-download-grid" aria-label="Excel reports">
+        <article class="panel report-file-card" data-report-kind="competitor">
+          <div class="report-file-kicker"><span class="file-number">A</span><span data-report="competitorKicker">竞品爆款拆解</span></div>
+          <h2 data-report="competitorTitle">Amazon 美国站头盔竞品爆款拆解</h2>
+          <p data-report="competitorDesc">5 个市场组、每组 3 款爆品、公开商品页图片、bullet、BSR、尺码、Customers say、正负反馈和可复刻方向。</p>
+          <div class="report-file-meta" id="report-file-competitor"></div>
+          <div class="button-row"><a id="report-download-competitor" class="primary-button report-download disabled" href="#"><span data-report="download">下载 Excel</span><span class="button-sub">XLSX</span></a></div>
+        </article>
+        <article class="panel report-file-card" data-report-kind="yongbao">
+          <div class="report-file-kicker"><span class="file-number">B</span><span data-report="yongbaoKicker">永宝进入潜力</span></div>
+          <h2 data-report="yongbaoTitle">永宝产品美国站进入潜力评估</h2>
+          <p data-report="yongbaoDesc">66 个“型号 + 品类”产品页，逐款中文命名、图片/PDF索引、每个 Size 头围与重量、认证门槛和 100 分评分。</p>
+          <div class="report-file-meta" id="report-file-yongbao"></div>
+          <div class="button-row"><a id="report-download-yongbao" class="primary-button report-download disabled" href="#"><span data-report="download">下载 Excel</span><span class="button-sub">XLSX</span></a></div>
+        </article>
+      </section>
+
+      <section class="panel report-detail-panel" aria-labelledby="detail-title">
+        <div class="panel-head">
+          <h2 id="detail-title"><span class="panel-index">05</span><span data-report="detailTitle">决策明细</span><small>DECISION DETAIL</small></h2>
+          <span class="panel-hint" data-report="detailHint">把 Excel 首页的结论先放到网页上，下载后仍保留完整逐款 Sheet。</span>
+        </div>
+        <div class="report-detail-columns">
+          <div><h3 data-report="priorityTitle">首批推荐</h3><div id="report-priority-list" class="priority-list"></div></div>
+          <div><h3 data-report="methodTitle">评分结构</h3><div id="report-method-list" class="method-list"></div></div>
+        </div>
+        <details class="report-all-products">
+          <summary><span data-report="allProducts">查看全部 66 款产品评分</span><small data-report="allProductsHint">按综合分排序；不改变 Excel 的逐款深度 Sheet</small></summary>
+          <div id="report-all-products-table" class="report-table-wrap"></div>
+        </details>
+      </section>
+
+      <section class="report-workflow-strip" aria-label="Workflow">
+        <div class="workflow-step"><span>01</span><strong data-report="stepCatalog">目录识别</strong><small data-report="stepCatalogHint">型号 + 品类去重，变体归并</small></div>
+        <div class="workflow-connector"></div>
+        <div class="workflow-step"><span>02</span><strong data-report="stepMarket">市场清洗</strong><small data-report="stepMarketHint">五组关键词、受众证据、展示位</small></div>
+        <div class="workflow-connector"></div>
+        <div class="workflow-step"><span>03</span><strong data-report="stepEvidence">前台取证</strong><small data-report="stepEvidenceHint">图片、价格、评价摘要、尺码、BSR</small></div>
+        <div class="workflow-connector"></div>
+        <div class="workflow-step"><span>04</span><strong data-report="stepScore">产品决策</strong><small data-report="stepScoreHint">合规硬门槛 + 100 分评分</small></div>
+        <div class="workflow-connector"></div>
+        <div class="workflow-step"><span>05</span><strong data-report="stepLayout">Excel排版</strong><small data-report="stepLayoutHint">总览、市场组、逐款产品页</small></div>
+      </section>
+
+      <footer class="footer notice">
+        <strong data-report="footerLabel">Notice:</strong> <span data-report="footer">这是本地研究和报告生成工具，不会自动发布内容、修改价格或操作平台账号。认证、成本、图片和产品结论仍需人工核验。</span>
+      </footer>
+    </main>
+
+    <script src="/i18n.js" defer></script>
+    <script src="/report-trial-import.js" defer></script>
+    <script src="/reports.js" defer></script>
+  </body>
+</html>

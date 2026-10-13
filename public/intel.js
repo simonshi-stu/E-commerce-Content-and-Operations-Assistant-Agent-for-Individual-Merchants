@@ -55,6 +55,11 @@
   const marketRun = document.querySelector('#market-run');
   const marketStatus = document.querySelector('#market-status');
   const marketResultEl = document.querySelector('#market-result');
+  const amazonResearchRun = document.querySelector('#amazon-research-run');
+  const amazonResearchExport = document.querySelector('#amazon-research-export');
+  const amazonResearchStatus = document.querySelector('#amazon-research-status');
+  const amazonResearchConfig = document.querySelector('#amazon-research-config');
+  const amazonResearchResultEl = document.querySelector('#amazon-research-result');
 
   let locale = i18n.detect();
   let currentHealth = null;
@@ -64,6 +69,8 @@
   let pricingResult = null;
   let batchResult = null;
   let marketResult = null;
+  let amazonResearchState = null;
+  let amazonPollTimer = null;
   let fxData = null;
   const aiResults = { score: null, compare: null, prices: null, batch: null, market: null };
   const aiErrors = { score: '', compare: '', prices: '', batch: '', market: '' };
@@ -93,6 +100,10 @@
   function numberOf(selector) {
     const parsed = Number.parseFloat(valueOf(selector));
     return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function listOf(selector) {
+    return valueOf(selector).split(/[\n,;]+/).map((item) => item.trim()).filter(Boolean);
   }
 
   function fmt(value, digits = 2) {
@@ -291,6 +302,7 @@
     renderPricingResult();
     renderBatchResult();
     renderMarketResult();
+    renderAmazonResearchResult();
     updateFxStatus();
     updateHealthText();
   }
@@ -1223,6 +1235,60 @@
       String(band.count)
     ])));
 
+    const productBlock = el('div', 'result-block');
+    productBlock.append(el('h4', null, { text: t('intel.market.productEvidence') }));
+    if (Array.isArray(result.products) && result.products.length > 0) {
+      const productGrid = el('div', 'market-product-grid');
+      for (const product of result.products) {
+        const card = el('article', 'market-product-card');
+        const media = el('div', 'market-product-media');
+        if (product.image) {
+          const image = el('img', null, {
+            src: product.image,
+            alt: product.title || t('intel.market.noImage'),
+            loading: 'lazy',
+            referrerpolicy: 'no-referrer'
+          });
+          image.addEventListener('error', () => {
+            image.replaceWith(el('span', 'market-product-no-image', { text: t('intel.market.noImage') }));
+          }, { once: true });
+          media.append(image);
+        } else {
+          media.append(el('span', 'market-product-no-image', { text: t('intel.market.noImage') }));
+        }
+        card.append(media);
+
+        const content = el('div', 'market-product-content');
+        const title = product.url
+          ? el('a', 'market-product-title', { href: product.url, target: '_blank', rel: 'noreferrer' })
+          : el('strong', 'market-product-title');
+        title.textContent = product.title || '-';
+        content.append(title);
+
+        const meta = el('div', 'market-product-meta');
+        meta.append(
+          el('span', null, { text: product.brand || 'unknown' }),
+          el('span', null, { text: product.price > 0 ? fmt(product.price) : '-' }),
+          el('span', null, { text: product.rating > 0 ? `★ ${fmt(product.rating)}` : '-' }),
+          el('span', null, { text: product.reviews > 0 ? `${fmt(product.reviews, 0)} ${t('intel.market.reviews')}` : '-' })
+        );
+        content.append(meta);
+
+        const evidence = el('div', 'market-product-evidence');
+        if (product.position > 0) evidence.append(el('span', 'summary-chip', { text: `${t('intel.market.searchOrder')} ${product.position}` }));
+        if (product.asin) evidence.append(el('span', 'summary-chip', { text: `${t('intel.market.asin')}: ${product.asin}` }));
+        if (product.store) evidence.append(el('span', 'summary-chip', { text: `${t('intel.market.store')}: ${product.store}` }));
+        if (product.sourceType) evidence.append(el('span', 'summary-chip', { text: `${t('intel.market.source')}: ${product.sourceType}` }));
+        content.append(evidence);
+        if (product.url) content.append(el('a', 'market-product-open', { href: product.url, target: '_blank', rel: 'noreferrer', text: t('intel.market.openListing') }));
+        card.append(content);
+        productGrid.append(card);
+      }
+      productBlock.append(productGrid);
+    } else {
+      productBlock.append(el('p', 'empty-inline', { text: t('intel.market.noProductEvidence') }));
+    }
+
     const brandBlock = el('div', 'result-block');
     brandBlock.append(el('h4', null, { text: t('intel.market.brandTable') }));
     const table = el('table', 'result-table');
@@ -1264,7 +1330,171 @@
     reasons.append(el('h4', null, { text: t('intel.market.reasons') }));
     reasons.append(chipList(result.entry.reasons, (code) => t(`intel.reason.${code}`)));
 
-    marketResultEl.append(chips, metrics, estimateNote, components, bands, brandBlock, dominant, features, reasons, aiBlock('market'));
+    marketResultEl.append(chips, metrics, estimateNote, components, bands, productBlock, brandBlock, dominant, features, reasons, aiBlock('market'));
+  }
+
+  /* ---------- Amazon public research ---------- */
+
+  function amazonIssueLabel(tag) {
+    return t(`intel.amazon.issue.${tag}`);
+  }
+
+  function csvValue(value) {
+    return `"${String(value === undefined || value === null ? '' : value).replace(/"/g, '""').replace(/[\r\n]+/g, ' / ')}"`;
+  }
+
+  function amazonResearchCsv(result) {
+    const columns = ['asin', 'title', 'brand', 'price_usd', 'rating', 'reviews', 'bought_text', 'monthly_units_floor', 'sizes', 'review_issue_tags', 'image_url', 'product_url', 'observed_at'];
+    const rows = (result.records || []).map((row) => [
+      row.asin, row.title, row.brand, row.price, row.rating, row.reviews, row.boughtText, row.bought,
+      (row.sizes || []).join('; '), (row.reviewIssueTags || []).map((item) => item.tag).join('; '), row.image,
+      row.url, row.observedAt
+    ]);
+    return `\ufeff${[columns, ...rows].map((row) => row.map(csvValue).join(',')).join('\r\n')}\r\n`;
+  }
+
+  function amazonProductCard(product) {
+    const card = el('article', 'amazon-research-card');
+    const media = el('div', 'amazon-research-media');
+    if (product.image) {
+      const image = el('img', null, { src: product.image, alt: product.title || t('intel.amazon.noImage'), loading: 'lazy', referrerpolicy: 'no-referrer' });
+      image.addEventListener('error', () => image.replaceWith(el('span', 'market-product-no-image', { text: t('intel.amazon.noImage') })), { once: true });
+      media.append(image);
+    } else {
+      media.append(el('span', 'market-product-no-image', { text: t('intel.amazon.noImage') }));
+    }
+    const body = el('div', 'amazon-research-card-body');
+    const title = product.url ? el('a', 'amazon-research-card-title', { href: product.url, target: '_blank', rel: 'noreferrer' }) : el('strong', 'amazon-research-card-title');
+    title.textContent = product.title || product.asin || '-';
+    body.append(title);
+    body.append(el('div', 'amazon-research-meta', {
+      text: [product.brand || 'unknown', product.price > 0 ? fmt(product.price) : '-', product.rating > 0 ? `★ ${fmt(product.rating)}` : '-', product.reviews > 0 ? `${fmt(product.reviews, 0)} ${t('intel.market.reviews')}` : '-'].join(' · ')
+    }));
+    if (product.boughtText) body.append(el('p', 'amazon-research-note', { text: product.boughtText }));
+    if (product.sizes && product.sizes.length) body.append(el('p', 'amazon-research-note', { text: `${t('intel.amazon.sizeSignals')}: ${product.sizes.join(', ')}` }));
+    if (product.url) body.append(el('a', 'market-product-open', { href: product.url, target: '_blank', rel: 'noreferrer', text: t('intel.amazon.open') }));
+    card.append(media, body);
+    return card;
+  }
+
+  function renderAmazonResearchResult() {
+    amazonResearchResultEl.replaceChildren();
+    const state = amazonResearchState;
+    if (!state) return;
+    if (state.status === 'running') {
+      const progress = state.progress || {};
+      setStatus(amazonResearchStatus, t('intel.amazon.running', { stage: progress.stage || 'starting', completed: progress.completed || 0 }));
+      amazonResearchRun.disabled = true;
+      return;
+    }
+    amazonResearchRun.disabled = false;
+    if (state.status === 'failed') {
+      setStatus(amazonResearchStatus, `${t('intel.amazon.failed')}: ${state.error ? state.error.message : '-'}`, true);
+      return;
+    }
+    const result = state.result;
+    if (!result) {
+      setStatus(amazonResearchStatus, '');
+      return;
+    }
+    const market = result.market || {};
+    const records = result.records || [];
+    const parsedPages = records.filter((row) => row.pageStatus === 'parsed').length;
+    setStatus(amazonResearchStatus, t('intel.amazon.completed', { records: records.length, pages: parsedPages }));
+    const summary = el('div', 'review-summary');
+    summary.append(
+      el('span', 'summary-chip', { text: `${t('intel.market.sample')}: ${market.sample || records.length}` }),
+      el('span', 'summary-chip', { text: `${t('intel.stats.median')}: ${market.price ? fmt(market.price.median) : '-'}` }),
+      el('span', 'summary-chip', { text: `${t('intel.market.medianReviews')}: ${market.reviews ? fmt(market.reviews.median, 0) : '-'}` }),
+      el('span', 'summary-chip', { text: `${t('intel.market.demandFloor')}: ${market.demand ? fmt(market.demand.monthlyUnitsFloor, 0) : '0'}` })
+    );
+    const metrics = metricGrid([
+      [t('intel.amazon.sizeRecords'), String(result.sizeFit ? result.sizeFit.recordsWithSizes : 0)],
+      [t('intel.amazon.reviewSamples'), String(result.reviewAnalysis ? result.reviewAnalysis.recordsWithReviews : 0)],
+      [t('intel.amazon.questions'), String(result.reviewAnalysis ? result.reviewAnalysis.questionSnippets.length : 0)],
+      [t('intel.market.entry'), market.entry ? `${market.entry.score}/100` : '-']
+    ]);
+    const competitorBlock = el('div', 'result-block');
+    competitorBlock.append(el('h4', null, { text: t('intel.market.productEvidence') }));
+    if (result.competitors && result.competitors.length) {
+      const grid = el('div', 'amazon-research-grid');
+      result.competitors.forEach((product) => grid.append(amazonProductCard(product)));
+      competitorBlock.append(grid);
+    } else {
+      competitorBlock.append(el('p', 'empty-inline', { text: t('intel.amazon.noResults') }));
+    }
+    const sizes = el('div', 'result-block');
+    sizes.append(el('h4', null, { text: t('intel.amazon.sizeSignals') }));
+    sizes.append(result.sizeFit && result.sizeFit.observedSizes.length
+      ? chipList(result.sizeFit.observedSizes, (item) => `${item.size} (${item.count})`)
+      : el('p', 'empty-inline', { text: t('intel.amazon.noSizes') }));
+    sizes.append(el('p', 'amazon-research-note', { text: t('intel.amazon.sizeCaveat') }));
+    const reviews = el('div', 'result-block');
+    reviews.append(el('h4', null, { text: t('intel.amazon.reviewIssues') }));
+    const issues = result.reviewAnalysis && result.reviewAnalysis.issueTags ? result.reviewAnalysis.issueTags : [];
+    reviews.append(issues.length
+      ? el('div', 'amazon-research-issues', { text: '' })
+      : el('p', 'empty-inline', { text: t('intel.amazon.noReviews') }));
+    if (issues.length) {
+      const issueEl = reviews.querySelector('.amazon-research-issues');
+      issues.forEach((item) => issueEl.append(el('span', 'summary-chip', { text: `${amazonIssueLabel(item.tag)} (${item.count})` })));
+    }
+    const snippets = result.reviewAnalysis && result.reviewAnalysis.reviewSnippets ? result.reviewAnalysis.reviewSnippets.slice(0, 8) : [];
+    if (snippets.length) {
+      reviews.append(el('h4', null, { text: t('intel.amazon.reviewSamples') }));
+      const list = el('ul', 'amazon-research-snippets');
+      snippets.forEach((item) => list.append(el('li', null, { text: item.text })));
+      reviews.append(list);
+    }
+    reviews.append(el('p', 'amazon-research-note', { text: t('intel.amazon.reviewCaveat') }));
+    amazonResearchResultEl.append(summary, metrics, competitorBlock, sizes, reviews);
+  }
+
+  function scheduleAmazonResearchPoll() {
+    if (amazonPollTimer) clearTimeout(amazonPollTimer);
+    if (amazonResearchState && amazonResearchState.status === 'running') {
+      amazonPollTimer = setTimeout(loadAmazonResearchStatus, 1500);
+    }
+  }
+
+  async function loadAmazonResearchStatus() {
+    try {
+      const response = await fetch('/api/amazon/research/status');
+      const body = await response.json();
+      if (!response.ok) throw new Error(body && body.error ? body.error.message : 'Unable to load research status.');
+      amazonResearchState = body.data;
+      const config = amazonResearchState.config || {};
+      amazonResearchConfig.textContent = t('intel.amazon.startup', { enabled: config.onStart ? t('common.yes') : t('common.no') });
+      renderAmazonResearchResult();
+      scheduleAmazonResearchPoll();
+    } catch (error) {
+      setStatus(amazonResearchStatus, error.message, true);
+    }
+  }
+
+  async function runAmazonResearch() {
+    const useCatalog = document.querySelector('#amazon-catalog-scope').checked;
+    const queries = listOf('#amazon-queries');
+    const asins = listOf('#amazon-asins');
+    if (!useCatalog && !queries.length && !asins.length) {
+      setStatus(amazonResearchStatus, t('intel.amazon.noResults'), true);
+      return;
+    }
+    setStatus(amazonResearchStatus, t('intel.status.calculating'));
+    try {
+      const response = await fetch('/api/amazon/research/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locale, scope: useCatalog ? 'catalog' : 'custom', queries, asins, maxProductPages: numberOf('#amazon-max-pages'), delayMs: numberOf('#amazon-delay') })
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(body && body.error ? body.error.message : 'Research could not start.');
+      amazonResearchState = body.data.status;
+      renderAmazonResearchResult();
+      scheduleAmazonResearchPoll();
+    } catch (error) {
+      setStatus(amazonResearchStatus, error.message, true);
+    }
   }
 
   /* ---------- Scoring templates ---------- */
@@ -1419,6 +1649,14 @@
 
   batchRun.addEventListener('click', runBatch);
   marketRun.addEventListener('click', runMarket);
+  amazonResearchRun.addEventListener('click', runAmazonResearch);
+  amazonResearchExport.addEventListener('click', () => {
+    if (!amazonResearchState || !amazonResearchState.result) {
+      setStatus(amazonResearchStatus, t('intel.amazon.noResults'), true);
+      return;
+    }
+    download(`amazon-research-${Date.now()}.csv`, amazonResearchCsv(amazonResearchState.result), 'text/csv;charset=utf-8');
+  });
   pricingForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     setStatus(pricingStatus, t('intel.status.calculating'));
@@ -1466,4 +1704,5 @@
   renderTemplates();
   loadRates();
   loadHealth();
+  loadAmazonResearchStatus();
 })();

@@ -25,3 +25,20 @@ private/
 internal/
 tmp/
 temp/
+
+# Private business reports, strategies, and realistic cost fixtures.
+reports/
+docs/INDEPENDENT-REPORT-AUDIT.md
+scripts/*yongbao*
+test/fixtures/
+
+# Local trial material or screenshots copied into the repository root.
+/*试采*/
+/*试采*.json
+/*试采*.md
+/*截图*
+/local-trial/
+/local-trials/
+/*trial*.json
+/*trial*.md
+/screenshots/

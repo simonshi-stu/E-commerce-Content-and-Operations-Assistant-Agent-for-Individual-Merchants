@@ -19,6 +19,7 @@ const { createFxService, parseRates } = require('../lib/fx');
 const { buildPricing } = require('../lib/pricing');
 const { assessCandidates, parseCandidateText } = require('../lib/candidates');
 const { analyzeMarket, parseBought, parseMarketRows } = require('../lib/market');
+const { parseAmazonProductHtml, parseAmazonSearchHtml, researchPublicAmazon } = require('../lib/amazon-research');
 const { normalizeIntelReview } = require('../lib/normalize');
 
 const TINY_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -623,7 +624,7 @@ describe('price csv import', () => {
 });
 
 describe('frontend scripts', () => {
-  for (const file of ['app.js', 'intel.js', 'i18n.js']) {
+  for (const file of ['app.js', 'intel.js', 'i18n.js', 'reports.js']) {
     it(`${file} parses without syntax errors`, () => {
       execFileSync(process.execPath, ['--check', path.join(__dirname, '..', 'public', file)]);
     });
@@ -787,12 +788,29 @@ describe('market recon', () => {
   });
 
   it('parses rows with a header and keeps provenance fields', () => {
-    const outcome = parseMarketRows('keyword,position,title,brand,price,rating,reviews,bought,badge,note\nbike helmet,1,Adult Bike Helmet with MIPS,BrandA,39.99,4.6,12453,10K+ bought in past month,Amazon\'s Choice,commuter', 'en');
+    const outcome = parseMarketRows('keyword,position,title,brand,price,rating,reviews,bought,badge,note,asin,image,url,store,source,observedAt\nbike helmet,1,Adult Bike Helmet with MIPS,BrandA,39.99,4.6,12453,10K+ bought in past month,Amazon\'s Choice,commuter,B000123,https://m.media-amazon.com/images/I/helmet.jpg,https://www.amazon.com/dp/B000123,BrandA Store,platform_search,2026-09-21', 'en');
     assert.equal(outcome.rows.length, 1);
     assert.equal(outcome.rows[0].brand, 'BrandA');
     assert.equal(outcome.rows[0].price, 39.99);
     assert.equal(outcome.rows[0].bought, 10000);
     assert.equal(outcome.rows[0].reviews, 12453);
+    assert.equal(outcome.rows[0].asin, 'B000123');
+    assert.equal(outcome.rows[0].store, 'BrandA Store');
+    assert.equal(outcome.rows[0].sourceType, 'platform_search');
+    assert.equal(outcome.rows[0].observedAt, '2026-09-21');
+    assert.match(outcome.rows[0].image, /^https:\/\//);
+    assert.match(outcome.rows[0].url, /amazon\.com\/dp\/B000123/);
+  });
+
+  it('keeps product evidence and rejects unsafe links', () => {
+    const outcome = parseMarketRows('title,brand,price,image,url\nSafe helmet,BrandA,39.99,https://example.com/helmet.jpg,javascript:alert(1)', 'en');
+    assert.equal(outcome.rows[0].image, 'https://example.com/helmet.jpg');
+    assert.equal(outcome.rows[0].url, '');
+    const { result } = analyzeMarket(outcome.rows, { observedAt: '2026-09-21', dataBasis: 'public_front_end' });
+    assert.equal(result.products.length, 1);
+    assert.equal(result.products[0].title, 'Safe helmet');
+    assert.equal(result.provenance.observedAt, '2026-09-21');
+    assert.equal(result.provenance.dataBasis, 'public_front_end');
   });
 
   it('analyses brands, price bands, demand, features, and entry', () => {
@@ -840,6 +858,99 @@ describe('market recon', () => {
   it('requires rows', () => {
     assert.ok(parseMarketRows('', 'en').error);
     assert.ok(parseMarketRows('   ', 'zh').error);
+  });
+});
+
+describe('Amazon public research', () => {
+  const productHtml = `<!doctype html><script type="application/ld+json">${JSON.stringify({
+    '@type': 'Product',
+    name: 'Demo commuter helmet',
+    brand: { name: 'DemoBrand' },
+    image: ['https://m.media-amazon.com/images/I/demo.jpg'],
+    offers: { price: '39.99' },
+    aggregateRating: { ratingValue: '4.6', reviewCount: '1245' }
+  })}</script><span id="productTitle">Demo commuter helmet</span><span id="acrCustomerReviewText">1,245 ratings</span><span id="acrPopover" title="4.6 out of 5 stars"></span><div id="feature-bullets"><ul><li><span class="a-list-item">Integrated rear LED light and adjustable fit dial.</span></li></ul></div></div><table><tr><th>Product Dimensions</th><td>12 x 9 x 7 inches</td></tr><tr><th>Item Weight</th><td>10 ounces</td></tr></table><div>Best Sellers Rank: #123 in Bike Helmets #45 in Adult Bike Helmets</div><h3>Customers say</h3><span>Customers appreciate the comfortable fit and bright rear light, but durability receives mixed reviews.</span><button aria-label="Positive aspect, fit, 942 mentions"></button><div data-hook="review"><i data-hook="review-star-rating"><span>2.0 out of 5 stars</span></i><a data-hook="review-title"><span>Hard to adjust</span></a><span data-hook="review-body"><span>Too small around the head and the strap is hard to adjust.</span></span></div><span data-hook="question-answer"><span>Does this fit a 58 cm head?</span></span>10K+ bought in past month 57-62 cm`;
+  const searchHtml = '<html><body><div data-component-type="s-search-result" data-asin="B000123456"><h2><span class="a-size-medium">Demo commuter helmet</span></h2><span class="a-price-whole">39</span><span class="a-price-fraction">99</span><span class="a-icon-alt">4.6 out of 5 stars</span><span class="a-size-base s-underline-text">1,245</span><img class="s-image" src="https://m.media-amazon.com/images/I/demo.jpg"/><a href="/dp/B000123456">open</a></div></body></html>';
+
+  it('parses public product fields, images, sizes, and review issue signals', () => {
+    const result = parseAmazonProductHtml(productHtml, 'https://www.amazon.com/dp/B000123456', { observedAt: '2026-09-22' });
+    assert.equal(result.asin, 'B000123456');
+    assert.equal(result.brand, 'DemoBrand');
+    assert.equal(result.price, 39.99);
+    assert.equal(result.rating, 4.6);
+    assert.equal(result.reviews, 1245);
+    assert.equal(result.monthlyUnitsFloor, 10000);
+    assert.ok(result.imageUrl.includes('media-amazon.com'));
+    assert.ok(result.sizes.includes('57-62 cm'));
+    assert.equal(result.productDimensions, '12 x 9 x 7 inches');
+    assert.equal(result.itemWeight, '10 ounces');
+    assert.ok(result.featureBullets.some((item) => item.includes('rear LED light')));
+    assert.ok(result.bestSellerRanks.some((item) => item.rank === 123));
+    assert.match(result.customerSummary, /comfortable fit/);
+    assert.deepEqual(result.customerAspects[0], { sentiment: 'positive', aspect: 'fit', mentions: 942 });
+    assert.ok(result.criticalReviewSnippets.some((item) => item.includes('Too small')));
+    assert.ok(result.reviewIssueTags.some((item) => item.tag === 'size_fit'));
+  });
+
+  it('can research explicit ASINs without issuing a search request', async () => {
+    const urls = [];
+    const result = await researchPublicAmazon({
+      asins: ['B000123456'],
+      maxProductPages: 1,
+      delayMs: 0,
+      fetchImpl: async (url) => {
+        urls.push(url);
+        return { ok: true, status: 200, url, text: async () => productHtml };
+      }
+    });
+    assert.equal(urls.length, 1);
+    assert.match(urls[0], /\/dp\/B000123456/);
+    assert.equal(result.records[0].asin, 'B000123456');
+  });
+
+  it('can collect public positive and critical review pages', async () => {
+    const positiveHtml = '<div data-hook="review"><i data-hook="review-star-rating"><span>5.0 out of 5 stars</span></i><a data-hook="review-title"><span>Great fit</span></a><span data-hook="review-body"><span>Comfortable fit and the rear light is bright.</span></span></div>';
+    const criticalHtml = '<div data-hook="review"><i data-hook="review-star-rating"><span>2.0 out of 5 stars</span></i><a data-hook="review-title"><span>Runs small</span></a><span data-hook="review-body"><span>The helmet runs small and the strap slips.</span></span></div>';
+    const result = await researchPublicAmazon({
+      asins: ['B000123456'],
+      maxProductPages: 1,
+      includeReviewPages: true,
+      delayMs: 0,
+      fetchImpl: async (url) => ({
+        ok: true,
+        status: 200,
+        url,
+        text: async () => url.includes('filterByStar=positive') ? positiveHtml : url.includes('filterByStar=critical') ? criticalHtml : productHtml
+      })
+    });
+    assert.equal(result.provenance.reviewPagesRequested, 2);
+    assert.ok(result.records[0].positiveReviewSnippets.some((item) => item.includes('Comfortable fit')));
+    assert.ok(result.records[0].criticalReviewSnippets.some((item) => item.includes('runs small')));
+  });
+
+  it('parses search results and researches only the public Amazon surface', async () => {
+    const search = parseAmazonSearchHtml(searchHtml, 'bike helmet');
+    assert.equal(search.length, 1);
+    assert.equal(search[0].asin, 'B000123456');
+    assert.equal(search[0].rating, 4.6);
+    const result = await researchPublicAmazon({
+      queries: ['bike helmet'],
+      maxProductPages: 1,
+      delayMs: 0,
+      observedAt: '2026-09-22',
+      fetchImpl: async (url) => ({
+        ok: true,
+        status: 200,
+        url,
+        text: async () => url.includes('/s?') ? searchHtml : productHtml
+      })
+    });
+    assert.equal(result.records.length, 1);
+    assert.equal(result.records[0].asin, 'B000123456');
+    assert.equal(result.provenance.dataBasis, 'amazon_public_frontend');
+    assert.equal(result.market.demand.monthlyUnitsFloor, 10000);
+    assert.ok(result.reviewAnalysis.issueTags.some((item) => item.tag === 'size_fit'));
+    assert.equal(result.sizeFit.recordsWithSizes, 1);
   });
 });
 

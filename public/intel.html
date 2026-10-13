@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="本地选品评分、竞品对比与价格分析；不抓取平台数据，不操作账号。">
+    <meta name="description" content="本地选品评分、竞品对比、Amazon公开前台研究与价格分析；不登录平台账号。">
     <meta name="color-scheme" content="dark light">
     <title>选品与情报 · Sourcing &amp; Intel</title>
     <link rel="stylesheet" href="/styles.css">
@@ -36,6 +36,7 @@
         <nav class="topbar-nav" aria-label="Sections">
           <a href="/" class="nav-link" data-i18n="nav.content">内容生成</a>
           <a href="/intel.html" class="nav-link is-active" data-i18n="nav.intel">选品与情报</a>
+          <a href="/reports.html" class="nav-link" data-i18n="nav.reports">报告中心</a>
         </nav>
         <div class="topbar-meta">
           <span id="health-chip" class="chip chip-muted">
@@ -61,7 +62,7 @@
         <div class="hero-copy">
           <p class="eyebrow" data-i18n="intel.hero.eyebrow">STAGE 2 · LOCAL INTELLIGENCE</p>
           <h1><span data-i18n="intel.hero.title1">选品、竞品与价格，</span><span class="grad" data-i18n="intel.hero.title2">用本地规则算清楚</span></h1>
-          <p class="hero-sub" data-i18n="intel.hero.sub">手动录入你已验证的数据，系统在本地完成毛利测算、竞品差距与价格带分析；不抓取平台数据，不操作任何账号。</p>
+          <p class="hero-sub" data-i18n="intel.hero.sub">在本地完成选品和公开前台研究；不登录平台账号，不进入Seller Central，不绕过验证码。</p>
         </div>
       </section>
 
@@ -260,11 +261,34 @@
           <div id="market-result" class="result-area"></div>
         </section>
 
+        <section class="panel intel-panel" aria-labelledby="amazon-research-title">
+          <div class="panel-head">
+            <h2 id="amazon-research-title"><span class="panel-index">06</span><span data-i18n="intel.amazon.title">Amazon公开前台研究</span><small data-i18n="intel.amazon.sub">PUBLIC FRONT-END RESEARCH</small></h2>
+            <span class="panel-hint" data-i18n="intel.amazon.hint">按目录类别或自定义关键词查找公开商品页，记录图片、购买标签、尺码信号和评论问题。</span>
+          </div>
+          <div class="field-grid">
+            <label><span data-i18n="intel.amazon.queries">自定义关键词（每行一个）</span><textarea id="amazon-queries" class="compact" data-i18n-placeholder="intel.amazon.queriesPlaceholder"></textarea></label>
+            <label><span data-i18n="intel.amazon.asins">指定ASIN（每行一个，可选）</span><textarea id="amazon-asins" class="compact" data-i18n-placeholder="intel.amazon.asinsPlaceholder"></textarea></label>
+          </div>
+          <div class="field-grid">
+            <label><span data-i18n="intel.amazon.maxPages">最多抓取商品页数</span><input id="amazon-max-pages" type="number" min="1" max="50" step="1" value="12"></label>
+            <label><span data-i18n="intel.amazon.delay">请求间隔（毫秒）</span><input id="amazon-delay" type="number" min="0" max="15000" step="100" value="1200"></label>
+          </div>
+          <label class="check-field"><input id="amazon-catalog-scope" type="checkbox" checked><span data-i18n="intel.amazon.catalogScope">使用永宝目录类别自动生成关键词</span></label>
+          <div class="button-row">
+            <button id="amazon-research-run" class="primary-button" type="button" data-i18n="intel.amazon.run">启动公开研究</button>
+            <button id="amazon-research-export" class="quiet-button small" type="button" data-i18n="intel.amazon.export">导出研究CSV</button>
+            <span id="amazon-research-config" class="chip chip-muted"></span>
+          </div>
+          <p class="status" id="amazon-research-status" aria-live="polite"></p>
+          <div id="amazon-research-result" class="result-area"></div>
+        </section>
+
         <section class="panel intel-panel" aria-labelledby="sources-title">
           <div class="panel-head">
-            <h2 id="sources-title"><span class="panel-index">06</span><span data-i18n="intel.sources.title">公开数据源（手动核对）</span><small data-i18n="intel.sources.sub">PUBLIC SOURCES</small></h2>
+            <h2 id="sources-title"><span class="panel-index">07</span><span data-i18n="intel.sources.title">公开数据源（手动核对）</span><small data-i18n="intel.sources.sub">PUBLIC SOURCES</small></h2>
           </div>
-          <p class="helper-text" data-i18n="intel.sources.hint">本工具不抓取、不登录任何平台。销量与竞品数据请从公开榜单或你已购买的数据工具导出后，用 CSV 导入或手动录入；后台操作请使用紫鸟浏览器。</p>
+          <p class="helper-text" data-i18n="intel.sources.hint">Amazon研究只访问公开前台页面；不登录、不访问Seller Central、不绕过验证码。启动时自动运行需要在本地环境配置中明确开启。</p>
           <ul class="source-list">
             <li><a href="https://www.amazon.com/gp/bestsellers" target="_blank" rel="noopener noreferrer" data-i18n="intel.sources.bestsellers">亚马逊美亚销售榜（公开前台）</a></li>
             <li><a href="https://www.amazon.com/gp/new-releases" target="_blank" rel="noopener noreferrer" data-i18n="intel.sources.newReleases">亚马逊美亚新品榜（公开前台）</a></li>
