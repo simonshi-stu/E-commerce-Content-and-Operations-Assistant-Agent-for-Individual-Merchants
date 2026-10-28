@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="本地选品评分、竞品对比、Amazon公开前台研究与价格分析；不登录平台账号。">
+    <meta name="color-scheme" content="dark light">
+    <title>选品与情报 · Sourcing &amp; Intel</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="bg-glow glow-a" aria-hidden="true"></div>
+    <div class="bg-glow glow-b" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" width="26" height="26" fill="none">
+              <path d="M16 2.8 27.4 9.4v13.2L16 29.2 4.6 22.6V9.4L16 2.8Z" stroke="url(#bg2)" stroke-width="1.8"/>
+              <circle cx="16" cy="16" r="4.6" stroke="url(#bg2)" stroke-width="1.8"/>
+              <path d="M16 11.4V6.2M16 25.8v-5.2M11.6 16H6.4M25.6 16h-5.2" stroke="url(#bg2)" stroke-width="1.6" stroke-linecap="round"/>
+              <defs>
+                <linearGradient id="bg2" x1="4" y1="3" x2="28" y2="29" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#818CF8"/><stop offset="1" stop-color="#22D3EE"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </span>
+          <span class="brand-text">
+            <strong data-i18n="brand.name">电商内容助手</strong>
+            <small data-i18n="brand.tag">CROSS-BORDER CONTENT STUDIO</small>
+          </span>
+        </a>
+        <nav class="topbar-nav" aria-label="Sections">
+          <a href="/" class="nav-link">工作台</a>
+          <a href="/content.html" class="nav-link" data-i18n="nav.content">内容生成</a>
+          <a href="/intel.html" class="nav-link is-active" data-i18n="nav.intel">选品与情报</a>
+          <a href="/reports.html" class="nav-link" data-i18n="nav.reports">报告中心</a>
+          <a href="/video.html" class="nav-link">视频工作台</a>
+        </nav>
+        <div class="topbar-meta">
+          <span id="health-chip" class="chip chip-muted">
+            <span class="chip-dot" aria-hidden="true"></span>
+            <span id="health-text" data-i18n="health.checking">检测中…</span>
+          </span>
+          <span class="chip chip-muted chip-local" data-i18n="privacy.local">127.0.0.1 · 数据不出本机</span>
+          <div class="segmented" id="theme-switch" role="group" data-i18n-aria-label="switch.theme">
+            <button type="button" data-theme-mode="dark" data-i18n="theme.dark">暗色</button>
+            <button type="button" data-theme-mode="light" data-i18n="theme.light">明亮</button>
+            <button type="button" data-theme-mode="auto" data-i18n="theme.auto">跟随系统</button>
+          </div>
+          <div class="segmented" id="language-switch" role="group" data-i18n-aria-label="switch.language">
+            <button type="button" data-locale="zh">中文</button>
+            <button type="button" data-locale="en">EN</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="page-shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow" data-i18n="intel.hero.eyebrow">STAGE 2 · LOCAL INTELLIGENCE</p>
+          <h1><span data-i18n="intel.hero.title1">选品、竞品与价格，</span><span class="grad" data-i18n="intel.hero.title2">用本地规则算清楚</span></h1>
+          <p class="hero-sub" data-i18n="intel.hero.sub">在本地完成选品和公开前台研究；不登录平台账号，不进入Seller Central，不绕过验证码。</p>
+        </div>
+      </section>
+
+      <div class="intel-grid">
+        <section class="panel intel-panel" aria-labelledby="score-title">
+          <div class="panel-head">
+            <h2 id="score-title"><span class="panel-index">01</span><span data-i18n="intel.score.title">选品评分</span><small data-i18n="intel.score.sub">PRODUCT SCORING</small></h2>
+            <span class="panel-hint" data-i18n="intel.score.hint">输入已验证的成本与市场判断，得到毛利与综合评分。</span>
+          </div>
+          <form id="score-form" class="intel-form" novalidate>
+            <div class="field-grid">
+              <label><span data-i18n="intel.field.name">候选品名称</span><input id="score-name" maxlength="120" required></label>
+              <label><span data-i18n="intel.field.price">计划售价</span><input id="score-price" type="number" min="0" step="0.01" required></label>
+              <label><span data-i18n="intel.field.unitCost">单件成本</span><input id="score-unit-cost" type="number" min="0" step="0.01"></label>
+              <label><span data-i18n="intel.field.shippingCost">单件运费</span><input id="score-shipping" type="number" min="0" step="0.01"></label>
+              <label><span data-i18n="intel.field.feeRate">平台佣金率 %</span><input id="score-fee" type="number" min="0" max="90" step="0.1" value="5"></label>
+              <label><span data-i18n="intel.field.adCost">单件广告成本</span><input id="score-ad-cost" type="number" min="0" step="0.01"></label>
+              <label><span data-i18n="intel.field.targetMargin">目标毛利率 %</span><input id="score-target-margin" type="number" min="0" max="95" step="0.5" value="20"></label>
+            </div>
+            <div class="field-grid intel-levels">
+              <label><span data-i18n="intel.field.demand">需求强度 1-5</span><input id="score-demand" type="number" min="1" max="5" step="1" value="3"></label>
+              <label><span data-i18n="intel.field.competition">竞争强度 1-5</span><input id="score-competition" type="number" min="1" max="5" step="1" value="3"></label>
+              <label><span data-i18n="intel.field.differentiation">差异化程度 1-5</span><input id="score-differentiation" type="number" min="1" max="5" step="1" value="3"></label>
+              <label><span data-i18n="intel.field.risk">风险水平 1-5</span><input id="score-risk" type="number" min="1" max="5" step="1" value="3"></label>
+            </div>
+            <div class="field-grid">
+              <label><span data-i18n="intel.field.basis">数据依据</span>
+                <select id="score-basis">
+                  <option value="verified" data-i18n="intel.basis.verified">已验证（实测/官方）</option>
+                  <option value="estimated" selected data-i18n="intel.basis.estimated">估算</option>
+                  <option value="guess" data-i18n="intel.basis.guess">粗略猜测</option>
+                </select>
+              </label>
+              <label><span data-i18n="intel.field.observedAt">采集日期</span><input id="score-observed" type="date"></label>
+            </div>
+            <div class="button-row">
+              <button type="submit" class="primary-button"><span class="button-label" data-i18n="intel.score.submit">计算评分</span></button>
+            </div>
+          </form>
+          <div class="panel-head intel-subhead">
+            <h3 data-i18n="intel.templates.title">评分模板</h3>
+            <div class="button-row">
+              <input id="template-name" class="template-name" maxlength="60" data-i18n-placeholder="intel.templates.name">
+              <button id="save-template" class="quiet-button small" type="button" data-i18n="intel.templates.save">保存当前参数</button>
+            </div>
+          </div>
+          <div id="template-list"></div>
+          <p class="status" id="score-status" aria-live="polite"></p>
+          <div id="score-result" class="result-area"></div>
+          <div class="panel-head intel-subhead">
+            <h3 data-i18n="intel.candidates.title">候选清单</h3>
+            <button id="export-candidates" class="quiet-button small" type="button" data-i18n="intel.action.exportJson">导出 JSON</button>
+          </div>
+          <div id="candidate-list"></div>
+          <div class="panel-head intel-subhead">
+            <h3 data-i18n="intel.batch.title">批量评估候选品</h3>
+          </div>
+          <p class="helper-text" data-i18n="intel.batch.hint">粘贴 CSV 或表格行（可从 Excel 直接复制）：名称,成本,售价,运费,佣金%,广告,目标毛利%,需求,竞争,差异化,风险,备注</p>
+          <textarea id="batch-text" class="compact" data-i18n-placeholder="intel.batch.placeholder"></textarea>
+          <div class="button-row">
+            <select id="batch-basis">
+              <option value="estimated" data-i18n="intel.basis.estimated">估算</option>
+              <option value="verified" data-i18n="intel.basis.verified">已验证（实测/官方）</option>
+            </select>
+            <button id="batch-run" class="quiet-button small" type="button" data-i18n="intel.batch.submit">开始评估</button>
+          </div>
+          <p class="status" id="batch-status" aria-live="polite"></p>
+          <div id="batch-result" class="result-area"></div>
+        </section>
+
+        <section class="panel intel-panel" aria-labelledby="compare-title">
+          <div class="panel-head">
+            <h2 id="compare-title"><span class="panel-index">02</span><span data-i18n="intel.compare.title">竞品对比</span><small data-i18n="intel.compare.sub">COMPETITOR COMPARISON</small></h2>
+            <span class="panel-hint" data-i18n="intel.compare.hint">录入竞品公开信息，得到价格位置与卖点差距。</span>
+          </div>
+          <form id="compare-form" class="intel-form" novalidate>
+            <div class="field-grid">
+              <label><span data-i18n="field.productName">商品名称</span><input id="compare-name" maxlength="120"></label>
+              <label><span data-i18n="intel.field.price">计划售价</span><input id="compare-price" type="number" min="0" step="0.01" required></label>
+            </div>
+            <label><span data-i18n="intel.compare.points">你的卖点（每行一条）</span><textarea id="compare-points" class="compact"></textarea></label>
+            <div class="panel-head intel-subhead">
+              <h3 data-i18n="intel.compare.competitors">竞品列表</h3>
+              <button id="add-competitor" class="quiet-button small" type="button" data-i18n="intel.compare.add">添加竞品</button>
+            </div>
+            <div id="competitor-rows" class="intel-rows"></div>
+            <div class="button-row">
+              <button type="submit" class="primary-button"><span class="button-label" data-i18n="intel.compare.submit">开始对比</span></button>
+            </div>
+          </form>
+          <p class="status" id="compare-status" aria-live="polite"></p>
+          <div id="compare-result" class="result-area"></div>
+        </section>
+
+        <section class="panel intel-panel" aria-labelledby="prices-title">
+          <div class="panel-head">
+            <h2 id="prices-title"><span class="panel-index">03</span><span data-i18n="intel.prices.title">价格分析</span><small data-i18n="intel.prices.sub">PRICE ANALYSIS</small></h2>
+            <span class="panel-hint" data-i18n="intel.prices.hint">记录你的价格与竞品价格，得到价格带与建议定价。</span>
+          </div>
+          <form id="prices-form" class="intel-form" novalidate>
+            <div class="panel-head intel-subhead">
+              <h3 data-i18n="intel.import.title">批量导入价格（CSV 或表格粘贴）</h3>
+              <button id="import-prices" class="quiet-button small" type="button" data-i18n="intel.import.submit">导入到价格记录</button>
+            </div>
+            <textarea id="import-text" class="compact" data-i18n-placeholder="intel.import.placeholder"></textarea>
+            <div class="panel-head intel-subhead">
+              <h3 data-i18n="intel.prices.points">价格记录</h3>
+              <button id="add-price" class="quiet-button small" type="button" data-i18n="intel.prices.add">添加记录</button>
+            </div>
+            <div id="price-rows" class="intel-rows"></div>
+            <div class="field-grid">
+              <label><span data-i18n="intel.field.unitCost">单件成本</span><input id="prices-unit-cost" type="number" min="0" step="0.01"></label>
+              <label><span data-i18n="intel.field.shippingCost">单件运费</span><input id="prices-shipping" type="number" min="0" step="0.01"></label>
+              <label><span data-i18n="intel.field.feeRate">平台佣金率 %</span><input id="prices-fee" type="number" min="0" max="90" step="0.1" value="5"></label>
+              <label><span data-i18n="intel.field.targetMargin">目标毛利率 %</span><input id="prices-target-margin" type="number" min="0" max="95" step="0.5" value="20"></label>
+              <label><span data-i18n="intel.field.adCost">单件广告成本</span><input id="prices-ad-cost" type="number" min="0" step="0.01"></label>
+            </div>
+            <div class="button-row">
+              <button type="submit" class="primary-button"><span class="button-label" data-i18n="intel.prices.submit">分析价格</span></button>
+            </div>
+          </form>
+          <p class="status" id="prices-status" aria-live="polite"></p>
+          <div id="prices-result" class="result-area"></div>
+        </section>
+
+        <section class="panel intel-panel" aria-labelledby="pricing-title">
+          <div class="panel-head">
+            <h2 id="pricing-title"><span class="panel-index">04</span><span data-i18n="intel.pricing.title">多币种定价与运费</span><small data-i18n="intel.pricing.sub">MULTI-CURRENCY PRICING</small></h2>
+            <span class="panel-hint" data-i18n="intel.pricing.hint">按公开汇率换算成本、运费与佣金，得到保本价与建议定价。</span>
+          </div>
+          <div class="fx-bar">
+            <span id="fx-status" class="chip chip-muted" data-i18n="intel.pricing.fxLoading">正在获取汇率…</span>
+            <label class="inline-field">
+              <span data-i18n="intel.pricing.fxManual">手动汇率</span>
+              <input id="fx-manual" type="number" min="0" step="0.0001">
+            </label>
+            <button id="fx-refresh" class="quiet-button small" type="button" data-i18n="intel.pricing.fxRefresh">刷新汇率</button>
+          </div>
+          <form id="pricing-form" class="intel-form" novalidate>
+            <div class="field-grid">
+              <label><span data-i18n="intel.pricing.marketplace">市场</span>
+                <select id="pricing-marketplace">
+                  <option value="amazon_na" data-i18n="intel.pricing.marketplace.amazon">亚马逊北美</option>
+                  <option value="generic" data-i18n="intel.pricing.marketplace.generic">通用</option>
+                </select>
+              </label>
+              <label><span data-i18n="intel.pricing.payout">收款币种</span><select id="pricing-payout" class="currency-select"></select></label>
+              <label><span data-i18n="intel.pricing.base">成本币种</span><select id="pricing-base" class="currency-select"></select></label>
+              <label><span data-i18n="intel.pricing.cost">商品成本</span><input id="pricing-cost" type="number" min="0" step="0.01"></label>
+              <label><span data-i18n="intel.pricing.shippingMode">运费方式</span>
+                <select id="pricing-shipping-mode">
+                  <option value="per_unit" data-i18n="intel.pricing.shipping.perUnit">按件</option>
+                  <option value="per_kg" data-i18n="intel.pricing.shipping.perKg">按公斤</option>
+                </select>
+              </label>
+              <label><span data-i18n="intel.pricing.shippingAmount">运费金额</span><input id="pricing-shipping" type="number" min="0" step="0.01"></label>
+              <label><span data-i18n="intel.pricing.weight">重量 kg</span><input id="pricing-weight" type="number" min="0" step="0.001" value="0.5"></label>
+              <label><span data-i18n="intel.pricing.dimensions">尺寸 cm（长/宽/高）</span>
+                <span class="triple-input">
+                  <input id="pricing-length" type="number" min="0" step="0.1" placeholder="L">
+                  <input id="pricing-width" type="number" min="0" step="0.1" placeholder="W">
+                  <input id="pricing-height" type="number" min="0" step="0.1" placeholder="H">
+                </span>
+              </label>
+              <label><span data-i18n="intel.pricing.divisor">体积重除数</span><input id="pricing-divisor" type="number" min="1" step="100" value="5000"></label>
+              <label><span data-i18n="intel.pricing.referral">平台佣金 %</span><input id="pricing-referral" type="number" min="0" max="90" step="0.1" value="15"></label>
+              <label><span data-i18n="intel.pricing.fulfillment">配送费（手动）</span><input id="pricing-fulfillment" type="number" min="0" step="0.01"></label>
+              <label><span data-i18n="intel.pricing.adMode">广告方式</span>
+                <select id="pricing-ad-mode">
+                  <option value="per_unit" data-i18n="intel.pricing.ad.perUnit">按件</option>
+                  <option value="percent" data-i18n="intel.pricing.ad.percent">按售价 %</option>
+                </select>
+              </label>
+              <label><span data-i18n="intel.pricing.adAmount">广告金额</span><input id="pricing-ad" type="number" min="0" step="0.01"></label>
+              <label><span data-i18n="intel.pricing.targetMargin">目标毛利率 %</span><input id="pricing-target" type="number" min="0" max="90" step="0.5" value="30"></label>
+              <label><span data-i18n="intel.pricing.listPrice">计划售价</span><input id="pricing-price" type="number" min="0" step="0.01"></label>
+            </div>
+            <div class="button-row">
+              <button type="submit" class="primary-button"><span class="button-label" data-i18n="intel.pricing.submit">计算定价</span></button>
+            </div>
+          </form>
+          <p class="status" id="pricing-status" aria-live="polite"></p>
+          <div id="pricing-result" class="result-area"></div>
+        </section>
+
+        <section class="panel intel-panel" aria-labelledby="market-title">
+          <div class="panel-head">
+            <h2 id="market-title"><span class="panel-index">05</span><span data-i18n="intel.market.title">市场侦察（公开前台记录）</span><small data-i18n="intel.market.sub">MARKET RECON</small></h2>
+            <span class="panel-hint" data-i18n="intel.market.hint">只记录公开前台可见信息（搜索结果、榜单）：关键词,排名,标题,品牌,价格,评分,评论数,月购买量,标签,备注。不要登录后台，也不要使用爬虫。</span>
+          </div>
+          <textarea id="market-text" data-i18n-placeholder="intel.market.placeholder"></textarea>
+          <div class="button-row">
+            <button id="market-run" class="quiet-button small" type="button" data-i18n="intel.market.submit">分析市场</button>
+          </div>
+          <p class="status" id="market-status" aria-live="polite"></p>
+          <div id="market-result" class="result-area"></div>
+        </section>
+
+        <section class="panel intel-panel" aria-labelledby="amazon-research-title">
+          <div class="panel-head">
+            <h2 id="amazon-research-title"><span class="panel-index">06</span><span data-i18n="intel.amazon.title">Amazon公开前台研究</span><small data-i18n="intel.amazon.sub">PUBLIC FRONT-END RESEARCH</small></h2>
+            <span class="panel-hint" data-i18n="intel.amazon.hint">按目录类别或自定义关键词查找公开商品页，记录图片、购买标签、尺码信号和评论问题。</span>
+          </div>
+          <div class="field-grid">
+            <label><span data-i18n="intel.amazon.queries">自定义关键词（每行一个）</span><textarea id="amazon-queries" class="compact" data-i18n-placeholder="intel.amazon.queriesPlaceholder"></textarea></label>
+            <label><span data-i18n="intel.amazon.asins">指定ASIN（每行一个，可选）</span><textarea id="amazon-asins" class="compact" data-i18n-placeholder="intel.amazon.asinsPlaceholder"></textarea></label>
+          </div>
+          <div class="field-grid">
+            <label><span data-i18n="intel.amazon.maxPages">最多抓取商品页数</span><input id="amazon-max-pages" type="number" min="1" max="50" step="1" value="12"></label>
+            <label><span data-i18n="intel.amazon.delay">请求间隔（毫秒）</span><input id="amazon-delay" type="number" min="0" max="15000" step="100" value="1200"></label>
+          </div>
+          <label class="check-field"><input id="amazon-catalog-scope" type="checkbox" checked><span data-i18n="intel.amazon.catalogScope">使用当前任务目录类别自动生成关键词</span></label>
+          <div class="button-row">
+            <button id="amazon-research-run" class="primary-button" type="button" data-i18n="intel.amazon.run">启动公开研究</button>
+            <button id="amazon-research-export" class="quiet-button small" type="button" data-i18n="intel.amazon.export">导出研究CSV</button>
+            <span id="amazon-research-config" class="chip chip-muted"></span>
+          </div>
+          <p class="status" id="amazon-research-status" aria-live="polite"></p>
+          <div id="amazon-research-result" class="result-area"></div>
+        </section>
+
+        <section class="panel intel-panel" aria-labelledby="sources-title">
+          <div class="panel-head">
+            <h2 id="sources-title"><span class="panel-index">07</span><span data-i18n="intel.sources.title">公开数据源（手动核对）</span><small data-i18n="intel.sources.sub">PUBLIC SOURCES</small></h2>
+          </div>
+          <p class="helper-text" data-i18n="intel.sources.hint">Amazon研究只访问公开前台页面；不登录、不访问Seller Central、不绕过验证码。启动时自动运行需要在本地环境配置中明确开启。</p>
+          <ul class="source-list">
+            <li><a href="https://www.amazon.com/gp/bestsellers" target="_blank" rel="noopener noreferrer" data-i18n="intel.sources.bestsellers">亚马逊美亚销售榜（公开前台）</a></li>
+            <li><a href="https://www.amazon.com/gp/new-releases" target="_blank" rel="noopener noreferrer" data-i18n="intel.sources.newReleases">亚马逊美亚新品榜（公开前台）</a></li>
+            <li><a href="https://www.amz123.com/usatopkeywords" target="_blank" rel="noopener noreferrer" data-i18n="intel.sources.topKeywords">AMZ123 美国站热搜词</a></li>
+            <li><a href="https://trends.google.com/" target="_blank" rel="noopener noreferrer" data-i18n="intel.sources.trends">Google Trends</a></li>
+            <li><a href="https://www.amz123.com/exchangepage" target="_blank" rel="noopener noreferrer" data-i18n="intel.sources.fx">AMZ123 汇率换算</a></li>
+            <li><a href="https://www.amz123.com/" target="_blank" rel="noopener noreferrer" data-i18n="intel.sources.portal">AMZ123 跨境导航</a></li>
+          </ul>
+        </section>
+      </div>
+
+      <footer class="footer notice">
+        <strong>Notice:</strong> <span data-i18n="footer.boundary">使用边界：本工具不会自动发布内容、修改价格或操作任何平台账号。生成内容仅为草稿，请人工核实事实、价格、资质与平台规则后再使用。</span>
+      </footer>
+    </main>
+
+    <script src="/i18n.js" defer></script>
+    <script src="/intel.js" defer></script>
+  </body>
+</html>

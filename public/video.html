@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="商品、AI 人物与参考视频的创意工作区：四维拆解、分镜编辑和 Hypit 任务包交接。">
+  <title>视频工作台 · Hypit Workflow</title>
+  <link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/workbench.css">
+</head>
+<body class="wb-body">
+  <header class="wb-topbar">
+    <a class="wb-brand" href="/"><span class="wb-mark">S</span><span>选品与创意工作台<small>SOURCING × CREATIVE</small></span></a>
+    <nav class="wb-nav" aria-label="主导航"><a href="/">工作台</a><a href="/reports.html">选品研究</a><a href="/intel.html">成本与竞品</a><a href="/content.html">图文草稿</a><a href="/video.html" aria-current="page">视频工作台</a><a href="/tasks.html">任务中心</a></nav>
+    <span class="chip" id="video-engine-status">Hypit · 检查交接能力…</span>
+  </header>
+  <main class="wb-main">
+    <section class="video-intro"><div><p class="eyebrow">REFERENCE → DECONSTRUCT → REMIX</p><h1>拆开爆款的逻辑，<span class="grad">讲你的商品故事。</span></h1><p class="hero-sub">节奏、文案、流程、氛围四维拆解。素材在浏览器本地预览；交接包不包含媒体文件，不自动上传或扣费。</p></div><a href="https://github.com/hypit-ai/hypit" class="quiet-button small" target="_blank" rel="noopener noreferrer">Hypit 项目 ↗</a></section>
+    <div class="video-modes" role="group" aria-label="视频制作路线">
+      <button type="button" class="video-mode" data-route="replace" aria-pressed="true"><span class="wb-kicker">ROUTE A / PRODUCT REPLACEMENT</span><strong>在参考视频中替换商品</strong><span>保留获授权的原片结构，评估跟踪/遮罩/重绘，并改写文案。不是简单贴图。</span></button>
+      <button type="button" class="video-mode" data-route="remix" aria-pressed="false"><span class="wb-kicker">ROUTE B / MATERIAL REMIX</span><strong>商品 × AI 人物 × 素材重组</strong><span>借鉴节奏与剪辑风格，用自己的素材重建，不默认复用原片画面和声音。</span></button>
+    </div>
+    <div class="video-grid">
+      <aside class="video-box">
+        <h2>01 / 素材选择</h2>
+        <label>商品名称<input id="video-product" maxlength="200" placeholder="输入要制作视频的商品"></label>
+        <label>品类<input id="video-category" maxlength="100" placeholder="不限品类，如：杯具 / 智能硬件"></label>
+        <label>目标市场<input id="video-market" maxlength="100" placeholder="如：中国抖音 / 美国 TikTok"></label>
+        <h3>真实商品图片</h3><label class="video-upload">＋ 选择商品图<input id="video-products" type="file" accept="image/png,image/jpeg,image/webp" multiple></label><div id="video-product-list" class="video-assets"></div>
+        <h3>AI 人物形象 <small class="wb-muted">可选</small></h3><label class="video-upload">＋ 选择已授权人物<input id="video-avatars" type="file" accept="image/png,image/jpeg,image/webp" multiple></label><div id="video-avatar-list" class="video-assets"></div>
+        <h3>实拍 / 补充素材</h3><label class="video-upload">＋ 选择图片或视频<input id="video-materials" type="file" accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime" multiple></label><div id="video-material-list" class="video-assets"></div>
+        <p>最多 24 个创作素材 + 1 条参考视频；单文件 ≤250MB。素材文件不会进入本地草稿存储，刷新后需重新选择。</p>
+      </aside>
+      <section class="video-box" aria-labelledby="reference-title">
+        <h2 id="reference-title">02 / 参考拆解与目标分镜</h2>
+        <label class="video-upload">选择本地参考视频<input id="video-reference" type="file" accept="video/mp4,video/webm,video/quicktime"></label>
+        <div class="video-stage">
+          <div id="video-stage-empty" class="video-stage-empty"><strong>先看懂，再开始重组。</strong><p>选择参考视频后可本地播放、手动记录切点，或扫描画面变化候选。文案和氛围需人工记录；当前未连接多模态自动拆解。</p></div>
+          <video id="video-player" controls playsinline hidden preload="metadata"></video>
+        </div>
+        <p id="video-reference-meta" class="video-stage-label">未选择参考视频 · 不会抓取外部视频链接</p>
+        <div class="video-build-actions"><button id="video-mark-cut" class="quiet-button small" type="button" disabled>记录当前切点</button><button id="video-scan" class="quiet-button small" type="button" disabled>扫描画面变化候选</button><button id="video-cancel-scan" class="quiet-button small" type="button" hidden>停止扫描</button></div>
+        <p id="video-scan-status" class="status" aria-live="polite"></p><p id="video-cut-list" class="wb-muted">尚无切点记录。</p>
+        <div class="video-dimensions">
+          <label>节奏 · 切点/快慢/停顿<textarea id="video-note-rhythm" maxlength="2000" placeholder="如：开场快速切入，展示段放慢；记录观察，不猜测播放效果。"></textarea></label>
+          <label>文案 · 钩子/卖点/收尾<textarea id="video-note-copy" maxlength="2000" placeholder="记录参考的文案结构或粘贴逐字稿；不是自动转录。"></textarea></label>
+          <label>流程 · 叙事与镜头顺序<textarea id="video-note-flow" maxlength="2000" placeholder="如：问题 → 商品揭晓 → 细节 → 使用场景。"></textarea></label>
+          <label>氛围 · 画面/音乐/表演<textarea id="video-note-atmosphere" maxlength="2000" placeholder="如：自然光、克制口播、近景；音乐需另获授权。"></textarea></label>
+        </div>
+        <div class="wb-heading" style="margin-top:26px"><h2>目标视频分镜</h2><button id="video-template" class="quiet-button small" type="button">填入待编辑分镜模板</button></div>
+        <p class="video-source-note">模板仅为创作起点，不是原视频分析。修改时长、素材、路线或文案后须重新生成交接包。</p>
+        <div id="video-shots"><p>还没有分镜。填入模板后，可编辑每个镜头的时间、素材和文案。</p></div>
+        <div class="video-build-actions"><button id="video-add-shot" class="quiet-button small" type="button">＋ 添加镜头</button></div>
+      </section>
+      <aside class="video-box video-settings">
+        <h2>03 / 商品约束与交接</h2>
+        <label>商品真实信息（待核验）<textarea id="video-facts" maxlength="4000" placeholder="只填写可核验的卖点、规格、适用场景。不要编造认证或功能。"></textarea></label>
+        <label>绝不能改动 / 不能演示<textarea id="video-prohibited" maxlength="2000" placeholder="如：保留 Logo、配色、接口；不得演示未证实的防水/承重功能。"></textarea></label>
+        <div class="video-shot-times"><label>目标时长 / 秒<input id="video-duration" type="number" min="3" max="180" step="0.1" value="15"></label><label>画幅<select id="video-aspect"><option>9:16</option><option>16:9</option><option>1:1</option></select></label></div>
+        <label class="video-check"><input id="video-rights" type="checkbox"><span>我有权使用所选素材；路线 A 涉及原片改编权，路线 B 仅借鉴结构。音乐/肖像/商标权仍需分别核验。</span></label>
+        <label class="video-check"><input id="video-avatar-consent" type="checkbox"><span>若使用人物：形象为自有或已获授权；不冒充原作者、不伪造代言或克隆未授权声音。</span></label>
+        <button id="video-plan" type="button" class="primary-button video-full-button">生成 Hypit 交接包</button>
+        <p id="video-status" class="status" role="status"></p>
+        <div class="video-build-actions"><button id="video-save" class="quiet-button small" type="button">保存本地文字草稿</button><button id="video-clear" class="quiet-button small" type="button">清除此草稿</button></div>
+        <section class="video-plan-block" id="video-plan-result" hidden>
+          <h3>交接包已准备 · 视频未生成</h3><div id="video-plan-summary" class="video-output"></div>
+          <button id="video-download-json" class="quiet-button video-full-button" type="button">下载任务 JSON</button><button id="video-download-brief" class="quiet-button video-full-button" type="button">下载 Hypit 制作简报</button>
+        </section>
+        <h3>执行能力与权限</h3><p class="video-warning">当前未连接 Hypit Runtime / 图像或视频模型；按钮只生成简报，不生成 MP4。</p><p>预算和素材外传范围授权后可批量制作，不必每镜弹窗。发布、群发和投流仍是单独权限。</p>
+        <details><summary class="wb-muted">Hypit 接入与许可证</summary><p>建议独立安装并固定版本；需要 Node 22.15+、pnpm 10.33.x，真实渲染需媒体运行环境。任务 JSON 是本工作台的数据格式，不是可执行 SVML。</p><p>Hypit 为修改版 Apache-2.0：单组织内部使用允许；向第三方提供托管功能/多租户/商业再分发需另行授权。<a href="https://github.com/hypit-ai/hypit/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">查看许可原文</a></p></details>
+      </aside>
+    </div>
+    <p class="video-footnote">保真边界：简单叠图不等于镜头内无痕替换。手部遮挡、运动跟踪、透视和旧商品移除需要逐镜评估；无法保真的镜头应使用自有素材重建。生成镜头不是商品真实功能的证据。</p>
+  </main>
+  <script src="/video-tools.js" defer></script><script src="/video.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark light">
+    <title>任务中心 · Task Center</title>
+    <link rel="stylesheet" href="/tasks.css">
+  </head>
+  <body>
+    <header class="tc-topbar">
+      <div class="tc-topbar-inner">
+        <a class="tc-brand" href="/">电商内容助手 · 任务中心</a>
+        <nav class="tc-nav" aria-label="Sections">
+          <a href="/">工作台</a>
+          <a href="/content.html">内容生成</a>
+          <a href="/video.html">视频工作台</a>
+          <a href="/intel.html">选品与情报</a>
+          <a href="/reports.html">报告中心</a>
+          <a href="/tasks.html" class="is-active">任务中心</a>
+        </nav>
+        <div class="tc-session">
+          <label for="session-token">会话令牌</label>
+          <input id="session-token" type="password" autocomplete="off" placeholder="由本地 operator 注入">
+          <button id="session-save" type="button">保存</button>
+          <span id="session-state" class="tc-muted">未连接</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="tc-main">
+      <div class="tc-projectbar">
+        <label for="project-id">项目 ID</label>
+        <input id="project-id" type="text" autocomplete="off" placeholder="例如 synthetic-sol">
+        <button id="project-save" type="button">切换项目</button>
+        <span id="project-state" class="tc-muted"></span>
+      </div>
+
+      <nav class="tc-tabs" aria-label="任务中心分区">
+        <button class="tc-tab is-active" type="button" data-panel="upload">资料上传确认</button>
+        <button class="tc-tab" type="button" data-panel="runs">任务状态 / 结果 / 费用</button>
+        <button class="tc-tab" type="button" data-panel="memory">商品 / 记忆 scope 修订</button>
+        <button class="tc-tab" type="button" data-panel="assets">素材预览 / 下载 / 重做</button>
+      </nav>
+
+      <section id="panel-upload" class="tc-panel">
+        <h2>资料上传 → 字段确认 / 纠错 → 重开读回</h2>
+        <p class="tc-muted">仅支持 csv / xlsx / pdf；png / jpg 需要 S1 许可，本机未配置时显式 blocked，不做 OCR 外呼。</p>
+        <div class="tc-form">
+          <input id="upload-file" type="file" accept=".csv,.xlsx,.pdf,.png,.jpg,.jpeg">
+          <input id="upload-supplier" type="text" placeholder="供应商 key（合成）" value="ui-upload">
+          <button id="upload-send" type="button">上传并解析</button>
+        </div>
+        <div id="upload-result" class="tc-result"></div>
+        <div id="upload-candidates" class="tc-tablewrap"></div>
+      </section>
+
+      <section id="panel-runs" class="tc-panel" hidden>
+        <h2>任务创建 → 状态 / 产物 / 异常 / 费用 → 取消 / 局部重做</h2>
+        <div class="tc-form">
+          <select id="run-task">
+            <option value="fixture-echo.v1">fixture-echo.v1（受控本地 fixture，无真实外呼/费用）</option>
+          </select>
+          <input id="run-input" type="text" maxlength="200" placeholder="fixture 输入文本（1-200 字符）">
+          <button id="run-create" type="button">创建并执行</button>
+          <button id="runs-refresh" type="button">刷新列表</button>
+          <button id="budget-refresh" type="button">刷新费用</button>
+        </div>
+        <div id="budget-box" class="tc-result"></div>
+        <div id="runs-list" class="tc-tablewrap"></div>
+        <div id="run-detail" class="tc-result"></div>
+      </section>
+
+      <section id="panel-memory" class="tc-panel" hidden>
+        <h2>作用域记忆修订（candidate → 确认 / 纠错链）</h2>
+        <p class="tc-muted">scope 仅 product / category / brand / market / run；brand 为空不匹配任何 brand 规则；run 规则不跨 run。</p>
+        <div class="tc-form">
+          <select id="memory-scope">
+            <option value="product">product</option>
+            <option value="category">category</option>
+            <option value="brand">brand</option>
+            <option value="market">market</option>
+            <option value="run">run</option>
+          </select>
+          <input id="memory-scope-key" type="text" placeholder="scopeKey（如 P1 / B1 / R1）">
+          <input id="memory-rule-key" type="text" placeholder="ruleKey">
+          <textarea id="memory-value" rows="2" placeholder='值 JSON，例如 {"note":"示例"}'></textarea>
+          <button id="memory-create" type="button">创建 candidate</button>
+          <button id="memory-refresh" type="button">按 scope 读回</button>
+        </div>
+        <div id="memory-list" class="tc-tablewrap"></div>
+        <div id="memory-chain" class="tc-result"></div>
+      </section>
+
+      <section id="panel-assets" class="tc-panel" hidden>
+        <h2>素材库（只读索引）· 有效版本偏好 · 预览下载</h2>
+        <p class="tc-muted">预览仅内联图片类型（经鉴权 blob 加载，不绕过服务端 artifact 权限）；其它类型请下载查看。</p>
+        <div class="tc-form">
+          <input id="assets-family" type="text" placeholder="familyKey（如 FAM-A）">
+          <input id="assets-role" type="text" placeholder="role（可选，如 main）">
+          <button id="assets-refresh" type="button">读取素材</button>
+          <button id="assets-prefs" type="button">读取偏好</button>
+        </div>
+        <div id="assets-list" class="tc-tablewrap"></div>
+        <div id="assets-pref-box" class="tc-result"></div>
+      </section>
+    </main>
+
+    <script src="/tasks.js" defer></script>
+  </body>
+</html>

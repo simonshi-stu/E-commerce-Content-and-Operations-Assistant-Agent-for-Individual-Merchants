@@ -1,13 +1,17 @@
 {
   "name": "e-commerce-content-and-operations-assistant-agent-demo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "A local, text-only demo for drafting platform-specific e-commerce content.",
+  "description": "A local, review-first e-commerce content assistant with structured drafts, image input, and compliance checks.",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
     "start": "node server.js",
     "test": "node --test"
+  },
+  "dependencies": {
+    "busboy": "^1.6.0",
+    "exceljs": "^4.4.0"
   }
 }
