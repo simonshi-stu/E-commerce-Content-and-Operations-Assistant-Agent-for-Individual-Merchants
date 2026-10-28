@@ -19,12 +19,39 @@ runs/
 artifacts/
 exports/
 uploads/
+runtime/
+data/
 data/private/
 docs/private/
 private/
 internal/
 tmp/
 temp/
+
+# Never commit local evidence, source documents, databases, or generated data.
+*.db
+*.sqlite
+*.sqlite3
+*.jsonl
+*.csv
+*.xlsx
+*.xls
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.mp4
+*.mov
+*.zip
+*.tar
+*.gz
+
+# JSON is reserved for local runtime/config data; package metadata is source.
+*.json
+!package.json
+!package-lock.json
 
 # Private business reports, strategies, and realistic cost fixtures.
 reports/
