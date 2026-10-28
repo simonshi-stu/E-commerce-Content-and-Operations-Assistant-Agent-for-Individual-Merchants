@@ -17,14 +17,15 @@ The category research path deliberately does not require supplier samples: it ac
 
 Some optional workflows make outbound requests when invoked. In particular, the current working tree includes an optional Amazon public-page research adapter; startup research is disabled by default, but user-triggered research can still make network requests. This is not an offline-only application. Model-backed operations also send the submitted content to the provider configured locally.
 
-## Hypit upstream attribution
+## Hypit video development and upstream attribution
 
 This project explicitly uses the Hypit upstream GitHub repository: <https://github.com/hypit-ai/hypit>.
 The local validation checkout is kept separately at `E:\Projects\hypit-runtime`, and the isolated
 AG68 proof project is at `E:\Projects\ag68-hypit-demo`. This repository contains the governed video
 handoff and local-workflow documentation; it does not vendor Hypit's source or claim that the main
 workbench has a hosted generation provider. The local proof used Hypit's media and HTML endpoints
-only, with no source-media upload, paid model request, or platform publication.
+only, with no source-media upload, paid model request, or platform publication. The future reference-
+video workflow is documented in [Hypit video development](docs/HYPIT-VIDEO-DEVELOPMENT.md).
 
 ## Run locally
 
