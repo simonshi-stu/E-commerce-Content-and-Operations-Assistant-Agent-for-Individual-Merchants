@@ -89,7 +89,7 @@ function makeFixtureTree(label) {
   const dir = fs.mkdtempSync(path.join(TMP_ROOT, `assets-${label}-`));
   const rgba = Buffer.from([255, 0, 0, 255, 0, 255, 0, 128]); // 2x1 RGBA, second pixel half-alpha
   writeFile(dir, 'alpha/hero/shot.png', makePng(2, 1, rgba));
-  writeFile(dir, 'alpha/hero/photo.jpg', makeJpeg(640, 25));
+  writeFile(dir, 'alpha/hero/photo.jpg', makeJpeg(640, 480));
   writeFile(dir, 'alpha/docs/notes.pdf', makePdf(2));
   writeFile(dir, 'alpha/video/clip.mp4', makeMp4());
   writeFile(dir, 'alpha/.WeDrive', Buffer.from('design-tool-metadata'));
@@ -116,7 +116,7 @@ test('index -> associate -> retrieve with real format parsing and a real PNG pix
 
   const jpeg = byPath.get('alpha/hero/photo.jpg');
   assert.equal(jpeg.image.width, 640);
-  assert.equal(jpeg.image.height, 25);
+  assert.equal(jpeg.image.height, 480);
   assert.equal(jpeg.image.decode, 'header');
   assert.equal(byPath.get('alpha/docs/notes.pdf').pdf.pdfVersion, '1.5');
   assert.equal(byPath.get('alpha/docs/notes.pdf').pdf.pageMarkerCount, 2);

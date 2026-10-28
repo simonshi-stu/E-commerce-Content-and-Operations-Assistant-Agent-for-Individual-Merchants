@@ -4,11 +4,11 @@
  *
  * Usage:
  *   node scripts/commerce/index-materials.js \
- *     --input <catalog.json> --mapping <mapping.json> \
+ *     --input <private shop-materials.json> --mapping <private mapping.json> \
  *     --source-root <read-only source directory> \
- *     --imports <runtime/imports/materials> \
- *     --evidence <runtime/evidence/materials> \
- *     --catalog <docs/material-catalog.md> \
+ *     --imports <private runtime/imports/shop-materials> \
+ *     --evidence <private runtime/evidence/shop-materials> \
+ *     --catalog <private docs/tasks/T1.8/MATERIAL-CATALOG.md> \
  *     [--reps <representative decodes per family>]
  *
  * Guards (application-level constraints, not OS isolation):
@@ -19,7 +19,7 @@
  *   scan the run stops BEFORE publishing any canonical output. Concurrent external changes still
  *   need a checkpoint — this is not a filesystem lock.
  *
- * All catalog values (paths, families, aliases, tokens) come from the injected files; this script
+ * All private values (paths, families, aliases, tokens) come from the injected files; this script
  * hardcodes none of them.
  */
 const fs = require('node:fs');
@@ -65,7 +65,7 @@ function assertOutputsOutsideSource(sourceRoot, targets) {
   }
 }
 
-/** folder -> family/source-set from the supplied catalog (authoritative aliases/source folders). */
+/** folder -> family/source-set from the private products list (authoritative aliases/source folders). */
 function buildFamilies(input) {
   const folders = {};
   const families = {};
@@ -155,7 +155,7 @@ function buildCatalog({ associated, families, input, decodeEvidence, sourceRoot,
   });
   const pendingLines = (input.pending ?? []).map((item) => `- ${item}`);
   return [
-    '# MATERIAL-CATALOG — 店铺素材索引（本地输入索引）',
+    '# MATERIAL-CATALOG — 店铺素材索引（T1.8 私有，2026-10-09）',
     '',
     `> 生成：index-materials.js｜源目录（只读）：\`${sourceRoot}\`｜sourceRootId：\`${input.inputId}\``,
     `> 内容指纹：\`${associated.fingerprintAfter?.fingerprint ?? ''}\`（${associated.fingerprintAfter?.fileCount ?? ''} 文件 / ${associated.fingerprintAfter?.totalBytes ?? ''} 字节；前后一致=${associated.sourceStable}）`,
@@ -167,7 +167,7 @@ function buildCatalog({ associated, families, input, decodeEvidence, sourceRoot,
     `- 格式（业务素材）：${JSON.stringify(associated.formats)}`,
     `- 忽略（.WeDrive 等设计工具元数据，非业务素材）：${associated.ignoredCount}`,
     '',
-    '## 商品族（nickname ≠ 正式型号 ≠ SKU；alias 只关联商品族）',
+    '## 六个商品族（nickname ≠ 正式型号 ≠ SKU；alias 只关联商品族）',
     '',
     '| familyKey | nickname | aliases | 文件数 | 内容对象 | 来源集（designSetId） |',
     '|---|---|---|---|---|---|',
@@ -179,20 +179,20 @@ function buildCatalog({ associated, families, input, decodeEvidence, sourceRoot,
     '- 用途候选：main/detail（来自目录 token）；旧海报不自动获得 MAIN 资格；合规文档不绑定整机合规（complianceBinding=false）。',
     '- SKU：颜色/配置仅为候选（如 color:… candidate）；未映射保持 unknown；nickname/alias 不冒充 SKU。',
     '',
-    '## 代表解码证据（本地文件）',
+    '## 代表解码证据（真实文件）',
     '',
     ...decodeEvidence.map((entry) => `- [${entry.kind}] ${entry.familyKey} :: ${entry.relPath} — ${entry.width ?? '?'}x${entry.height ?? '?'}${entry.rgbaSha256 ? ` rgbaSha256=${entry.rgbaSha256}` : ''}${entry.reason ? ` reason=${entry.reason}` : ''}`),
     '',
-    '## 待补（最短清单，来自当前输入）',
+    '## 待补（最短清单，来自私有输入）',
     '',
     ...pendingLines,
     '',
     '## 局限与未知（不猜）',
     '',
-    '- 各商品族的未知参数（语言/离线能力/模型名/App/订阅等）保持 unknown，不推断；用户确认事实以已批准的 packs 为准。',
+    '- 各商品族的未知参数（语言/离线能力/模型名/App/订阅等）保持 unknown，不推断；用户确认事实以私有 packs 为准。',
     '- PDF/MP4 仅元数据级处理，不默认播放/完整读过；JPEG 仅头部解析（本任务不逐像素解码）；PNG 按文件持久 pixel_decoded/pixel_unsupported/header_only 状态与原因。',
     '- 无 OCR：素材文字/参数只作候选，须经 Evidence（T1.3）引用后方可使用。',
-    '- 不引用历史快照；以本次指纹与记录为准。',
+    '- 历史对照（旧任务快照 333 文件/298 唯一图片内容）仅供参考；以本次指纹与记录为准。',
     '- 未做媒体生成/listing 编辑/发布；不授予账号资格或公开上传权限。',
     ...extraNotes
   ].join('\n');
@@ -241,8 +241,8 @@ function main() {
     fingerprintBefore,
     fingerprintAfter,
     sourceStable,
-    decodeEvidenceRef: 'runtime/evidence/materials/decode-evidence.json',
-    comparisonsRef: 'runtime/evidence/materials/representative-comparisons.json',
+    decodeEvidenceRef: 'runtime/evidence/shop-materials/decode-evidence.json',
+    comparisonsRef: 'runtime/evidence/shop-materials/representative-comparisons.json',
     ocrPerformed: false,
     notes: [
       'roles/usages/languages/sku candidates are candidates only; nothing is confirmed here',
@@ -259,14 +259,14 @@ function main() {
   assets.writeJsonAtomic(path.join(args.imports, 'manifest.json'), manifest);
   assets.writeJsonAtomic(path.join(args.evidence, 'decode-evidence.json'), {
     schemaVersion: 1,
-    kind: 'materials-decode-evidence',
+    kind: 'shop-materials-decode-evidence',
     sourceRootId: input.inputId,
     recordedAt: new Date().toISOString(),
     evidence: decodeEvidence
   });
   assets.writeJsonAtomic(path.join(args.evidence, 'representative-comparisons.json'), {
     schemaVersion: 1,
-    kind: 'materials-representative-comparisons',
+    kind: 'shop-materials-representative-comparisons',
     sourceRootId: input.inputId,
     recordedAt: new Date().toISOString(),
     note: 'fingerprint-level representatives only; no visual analysis; different hashes do not imply different designs',
@@ -274,7 +274,7 @@ function main() {
   });
   assets.writeJsonAtomic(path.join(args.evidence, 'source-fingerprint.json'), {
     schemaVersion: 1,
-    kind: 'materials-source-fingerprint',
+    kind: 'shop-materials-source-fingerprint',
     sourceRootId: input.inputId,
     recordedAt: new Date().toISOString(),
     fingerprintBefore,

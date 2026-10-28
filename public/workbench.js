@@ -11,12 +11,12 @@
   function render() {
     const container = $('wb-project-list');
     container.replaceChildren();
-    if (!projects.length) { container.append(element('div', '从一个品类开始。创建项目后，可带着相同简报进入研究和视频工作区；不会预填历史业务数据。', 'wb-empty')); return; }
+    if (!projects.length) { container.append(element('div', '从一个品类开始。创建项目后，可带着相同简报进入研究和视频工作区；不会预填历史头盔数据。', 'wb-empty')); return; }
     for (const project of projects) {
       const card = element('article', '', 'wb-project');
       card.append(element('span', project.category, 'wb-kicker'), element('h3', project.name), element('p', `${project.market} · 本地简报 · 未执行研究`));
       const params = new URLSearchParams({ project: project.name, category: project.category, market: project.market });
-      const research = element('a', '开始研究 ↗'); research.href = `/reports.html?entry=track&${params}`;
+       const research = element('a', '开始选品洞察 ↗'); research.href = `/sourcing.html?${params}`;
       const video = element('a', '制作视频 ↗'); video.href = `/video.html?${params}`;
       const remove = element('button', '移除', 'quiet-button small'); remove.type = 'button';
       remove.addEventListener('click', () => {

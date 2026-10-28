@@ -11,11 +11,22 @@
 <body class="wb-body">
   <header class="wb-topbar">
     <a class="wb-brand" href="/"><span class="wb-mark">S</span><span>选品与创意工作台<small>SOURCING × CREATIVE</small></span></a>
-    <nav class="wb-nav" aria-label="主导航"><a href="/">工作台</a><a href="/reports.html">选品研究</a><a href="/intel.html">成本与竞品</a><a href="/content.html">图文草稿</a><a href="/video.html" aria-current="page">视频工作台</a><a href="/tasks.html">任务中心</a></nav>
+    <nav class="wb-nav" aria-label="主导航"><a href="/">工作台</a><a href="/sourcing.html">选品洞察</a><a href="/video.html" aria-current="page">爆款复刻</a><a href="/content.html">图文草稿</a><a href="/tasks.html">任务中心</a></nav>
     <span class="chip" id="video-engine-status">Hypit · 检查交接能力…</span>
   </header>
   <main class="wb-main">
     <section class="video-intro"><div><p class="eyebrow">REFERENCE → DECONSTRUCT → REMIX</p><h1>拆开爆款的逻辑，<span class="grad">讲你的商品故事。</span></h1><p class="hero-sub">节奏、文案、流程、氛围四维拆解。素材在浏览器本地预览；交接包不包含媒体文件，不自动上传或扣费。</p></div><a href="https://github.com/hypit-ai/hypit" class="quiet-button small" target="_blank" rel="noopener noreferrer">Hypit 项目 ↗</a></section>
+    <section class="video-discovery-box" aria-labelledby="video-discovery-title">
+      <div class="wb-heading"><div><p class="wb-kicker">00 / VIRAL DISCOVERY</p><h2 id="video-discovery-title">先在已登录平台找参考</h2></div><span class="wb-muted">候选由用户从抖音/TikTok 搜索页记录；系统只在已输入候选中按播放量排序</span></div>
+      <div class="video-discovery-grid">
+        <label>平台<select id="video-platform"><option value="douyin">抖音</option><option value="tiktok">TikTok</option></select></label>
+        <label>搜索关键词<input id="video-search-query" maxlength="160" placeholder="如：骑行头盔 / bike helmet"></label>
+        <label class="video-discovery-wide">候选记录（每行一条 JSON；字段：url、plays、title、creator、likes、comments、duration）<textarea id="video-candidates" rows="4" placeholder='{"url":"https://www.douyin.com/video/...","plays":"1.2万","title":"...","creator":"...","duration":"15s"}'></textarea></label>
+      </div>
+      <div class="video-build-actions"><button id="video-rank-candidates" class="quiet-button small" type="button">按播放量排序</button><span id="video-candidate-status" class="status" role="status"></span></div>
+      <div id="video-candidate-list" class="video-candidate-list"></div>
+      <p class="video-source-note">播放量排序不是全平台“最高播放量”证明；未连接抖音/TikTok 搜索 API，不自动绕过登录、下载或上传参考视频。选中后仍需把有权使用的本地参考视频上传到下方。</p>
+    </section>
     <div class="video-modes" role="group" aria-label="视频制作路线">
       <button type="button" class="video-mode" data-route="replace" aria-pressed="true"><span class="wb-kicker">ROUTE A / PRODUCT REPLACEMENT</span><strong>在参考视频中替换商品</strong><span>保留获授权的原片结构，评估跟踪/遮罩/重绘，并改写文案。不是简单贴图。</span></button>
       <button type="button" class="video-mode" data-route="remix" aria-pressed="false"><span class="wb-kicker">ROUTE B / MATERIAL REMIX</span><strong>商品 × AI 人物 × 素材重组</strong><span>借鉴节奏与剪辑风格，用自己的素材重建，不默认复用原片画面和声音。</span></button>
@@ -36,9 +47,10 @@
         <label class="video-upload">选择本地参考视频<input id="video-reference" type="file" accept="video/mp4,video/webm,video/quicktime"></label>
         <div class="video-stage">
           <div id="video-stage-empty" class="video-stage-empty"><strong>先看懂，再开始重组。</strong><p>选择参考视频后可本地播放、手动记录切点，或扫描画面变化候选。文案和氛围需人工记录；当前未连接多模态自动拆解。</p></div>
-          <video id="video-player" controls playsinline hidden preload="metadata"></video>
+         <video id="video-player" controls playsinline hidden preload="metadata"></video>
         </div>
         <p id="video-reference-meta" class="video-stage-label">未选择参考视频 · 不会抓取外部视频链接</p>
+        <label>参考来源 URL（仅元数据）<input id="video-reference-source" type="url" maxlength="2000" placeholder="选中候选后自动填入；不会自动抓取"></label>
         <div class="video-build-actions"><button id="video-mark-cut" class="quiet-button small" type="button" disabled>记录当前切点</button><button id="video-scan" class="quiet-button small" type="button" disabled>扫描画面变化候选</button><button id="video-cancel-scan" class="quiet-button small" type="button" hidden>停止扫描</button></div>
         <p id="video-scan-status" class="status" aria-live="polite"></p><p id="video-cut-list" class="wb-muted">尚无切点记录。</p>
         <div class="video-dimensions">
@@ -46,6 +58,7 @@
           <label>文案 · 钩子/卖点/收尾<textarea id="video-note-copy" maxlength="2000" placeholder="记录参考的文案结构或粘贴逐字稿；不是自动转录。"></textarea></label>
           <label>流程 · 叙事与镜头顺序<textarea id="video-note-flow" maxlength="2000" placeholder="如：问题 → 商品揭晓 → 细节 → 使用场景。"></textarea></label>
           <label>氛围 · 画面/音乐/表演<textarea id="video-note-atmosphere" maxlength="2000" placeholder="如：自然光、克制口播、近景；音乐需另获授权。"></textarea></label>
+          <label class="video-dimension-wide">逐字稿 · 仅粘贴已获授权或自己转录的文本<textarea id="video-transcript" maxlength="12000" placeholder="记录口播原文，逐句对应镜头；不自动把参考视频台词当成可发布文案。"></textarea></label>
         </div>
         <div class="wb-heading" style="margin-top:26px"><h2>目标视频分镜</h2><button id="video-template" class="quiet-button small" type="button">填入待编辑分镜模板</button></div>
         <p class="video-source-note">模板仅为创作起点，不是原视频分析。修改时长、素材、路线或文案后须重新生成交接包。</p>

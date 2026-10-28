@@ -33,8 +33,8 @@ function fixtureOcrTransport() {
   return async () => {
     call += 1;
     const lines = call % 2 === 1
-      ? [{ text: 'MODEL-A example cost 12 USD/pcs EXW', x: 0, y: 0, w: 1, h: 1 }, { text: 'synthetic quantity' }]
-      : [{ text: 'MODEL-O example cost 15 USD/pcs FOB' }];
+      ? [{ text: 'H0 出厂价 40元/套 FOB 深圳', x: 0, y: 0, w: 1, h: 1 }, { text: '数量：100件' }]
+      : [{ text: 'HO 出厂价 ¥45 FOB 深圳' }];
     return {
       kind: 'response',
       httpStatus: 200,

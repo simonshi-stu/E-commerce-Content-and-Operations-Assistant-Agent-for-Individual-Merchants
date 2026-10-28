@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-28T16:54:02+08:00",
+  "platform": "douyin",
+  "query": "AI智能眼镜",
+  "searchUrl": "https://www.douyin.com/jingxuan",
+  "selectionBasis": "highest visible comment count among checked candidates",
+  "completeSearch": false,
+  "selected": {
+    "url": "https://www.douyin.com/video/7522327170364083496",
+    "videoId": "7522327170364083496",
+    "title": "小米首款AI眼镜，都有哪些有意思的功能？我跟大家详细介绍一下",
+    "visibleInteractionSequence": ["49.9万", "9.0万", "4.4万", "34.8万"],
+    "commentCountDisplay": "9.0万",
+    "commentCountApprox": 90000,
+    "durationSeconds": 86.588,
+    "width": 1440,
+    "height": 2560,
+    "localMediaPath": "E:\\Projects\\ag68-hypit-demo\\assets\\douyin-reference-7522327170364083496.mp4",
+    "localMediaSizeBytes": 10097335,
+    "localMediaSha256": "b723799483a4a76252d88bd2d5eed96449cb39f0fa30ed8dd223326395126fbf",
+    "useRestriction": "local non-published reference analysis only",
+    "rightsStatus": "unconfirmed",
+    "mechanicalBoundaryAnalysis": {
+      "path": "E:\\Projects\\ag68-hypit-demo\\analysis\\douyin-reference-boundaries.json",
+      "method": "Hypit media boundaries; adjacent-frame change candidates, not editorial cuts",
+      "sampleRate": 4,
+      "threshold": 0.05,
+      "candidateCount": 45,
+      "representativeFramesPath": "E:\\Projects\\ag68-hypit-demo\\analysis\\douyin-reference-frames"
+    }
+  },
+  "checkedComparisons": [
+    {
+      "label": "何同学视频",
+      "commentCountDisplay": "约3075",
+      "commentCountApprox": 3075
+    },
+    {
+      "label": "小白运营笔记视频",
+      "commentCountDisplay": "约1734",
+      "commentCountApprox": 1734
+    }
+  ],
+  "limitations": [
+    "The ranking covers only candidates checked from the logged-in search page, not all Douyin videos.",
+    "The interaction sequence was read from the detail page; the second visible value was treated as comments.",
+    "Only structure, pacing, shot language, information order, and tone may be studied before rights are confirmed.",
+    "The source media was not uploaded to a hosted service, published, or used for a paid generation request."
+  ]
+}

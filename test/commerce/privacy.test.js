@@ -49,8 +49,8 @@ function syntheticRaw() {
       terms: 'synthetic net-30 terms',
       rawSourcePath: 'P:\\runtime\\private\\synthetic\\source.txt'
     },
-    notes: 'Synthetic note CANARY-NOTE-001 with secret synthetic-secret-canary',
-    apiKey: 'synthetic-secret-canary',
+    notes: 'Synthetic note CANARY-NOTE-001 with secret sk-TESTCANARY12345678',
+    apiKey: 'sk-TESTCANARY12345678',
     unknownExtra: { hidden: 'CANARY-UNKNOWN-001' }
   };
 }
@@ -58,7 +58,7 @@ function syntheticRaw() {
 test('synthetic raw object flows internal-full -> external-redacted -> log filter with read-back canary scan', { skip }, () => {
   const policy = syntheticPolicy();
   const raw = syntheticRaw();
-  const canaries = ['CANARY-NOTE-001', 'CANARY-UNKNOWN-001', 'synthetic-secret-canary'];
+  const canaries = ['CANARY-NOTE-001', 'CANARY-UNKNOWN-001', 'sk-TESTCANARY12345678'];
   const before = JSON.stringify(raw);
 
   const internal = privacy.applyProfile(raw, policy, 'internal-full', { canaries });
@@ -166,24 +166,24 @@ test('credentials never appear in any profile or log, even embedded in kept stri
   };
   const raw = {
     name: 'Synthetic Vendor',
-    note: 'call with password=synthetic-password before shipping',
-    password: 'synthetic-password',
-    token: 'synthetic-secret-canary'
+    note: 'call with password=Sup3rSecret! before shipping',
+    password: 'Sup3rSecret!',
+    token: 'sk-TESTCANARY12345678'
   };
   const before = JSON.stringify(raw);
   for (const profile of privacy.PROFILES) {
     const out = privacy.applyProfile(raw, policy, profile);
     assert.equal(out.password, undefined, `${profile} must drop the password field`);
     assert.equal(out.token, undefined, `${profile} must drop the token field`);
-    assert.ok(!JSON.stringify(out).includes('synthetic-password'), `${profile} must not carry the password value`);
-    assert.ok(!JSON.stringify(out).includes('synthetic-secret-canary'), `${profile} must not carry the token value`);
-    assert.ok(!out.note.includes('synthetic-password'), `${profile} scrubs secret-shaped text inside kept fields`);
+    assert.ok(!JSON.stringify(out).includes('Sup3rSecret'), `${profile} must not carry the password value`);
+    assert.ok(!JSON.stringify(out).includes('sk-'), `${profile} must not carry the token value`);
+    assert.ok(!out.note.includes('Sup3rSecret'), `${profile} scrubs secret-shaped text inside kept fields`);
   }
   const logCopy = privacy.redactForLog(raw, policy);
   assert.equal(logCopy.password, undefined);
-  assert.ok(!JSON.stringify(logCopy).includes('synthetic-password'));
-  assert.ok(!JSON.stringify(logCopy).includes('synthetic-secret-canary'));
-  assert.deepEqual(privacy.findCanaryHits(JSON.stringify(logCopy), ['synthetic-password', 'synthetic-secret-canary']), []);
+  assert.ok(!JSON.stringify(logCopy).includes('Sup3rSecret'));
+  assert.ok(!JSON.stringify(logCopy).includes('sk-'));
+  assert.deepEqual(privacy.findCanaryHits(JSON.stringify(logCopy), ['Sup3rSecret', 'sk-TESTCANARY12345678']), []);
   assert.equal(JSON.stringify(raw), before, 'input unchanged');
 });
 

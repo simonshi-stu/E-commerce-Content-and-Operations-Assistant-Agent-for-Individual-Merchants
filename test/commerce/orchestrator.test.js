@@ -187,7 +187,7 @@ test('T2.7 risk①: schema/cycle/role/allowlist/registry-snapshot fail-closed; u
   assert.throws(() => orch.validatePlan({ schemaVersion: 1, taskType: 't', steps: [step('a', { tool: 'fixture.absent' })] }, snapshot), /unknown tool/);
   assert.throws(() => orch.validatePlan({ schemaVersion: 1, taskType: 't', steps: [step('a', { role: 'creative' })] }, snapshot), /role allowlist/);
   assert.throws(() => orch.validatePlan({ schemaVersion: 1, taskType: 't', steps: [step('a', { input: { text: 'x', extra: 'y' } })] }, snapshot), /input/);
-  assert.throws(() => orch.validatePlan({ schemaVersion: 1, taskType: 't', steps: [step('a', { input: { text: 'x', apiKey: 'synthetic-key-canary' } })] }, snapshot), /credential|apiKey|key/i);
+  assert.throws(() => orch.validatePlan({ schemaVersion: 1, taskType: 't', steps: [step('a', { input: { text: 'x', apiKey: 'sk-fixture-not-a-real-key' } })] }, snapshot), /credential|apiKey|key/i);
   const tooMany = { schemaVersion: 1, taskType: 't', steps: Array.from({ length: 17 }, (_, index) => step(`s${index}`)) };
   assert.throws(() => orch.validatePlan(tooMany, snapshot), /exceeds the trusted limit 16/);
   // --- registry snapshot immutability ---

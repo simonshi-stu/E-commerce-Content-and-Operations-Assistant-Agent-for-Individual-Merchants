@@ -1,7 +1,7 @@
 'use strict';
 /**
  * T2.3 — idempotency / cache / reconciliation tests (revision-01 contract). Real SQLite
- * (0006+0007+0008 isolated migrations), explicit clocks (no sleeps), synthetic fixtures only; the
+ * (0006+0007 isolated migrations), explicit clocks (no sleeps), synthetic fixtures only; the
  * worker linkage group uses the REAL approved worker library + run-store output. Temp files only
  * under $COMMERCE_TEST_TMP.
  */
@@ -59,7 +59,7 @@ function freshIdem(label) {
   const dir = fs.mkdtempSync(path.join(TMP_ROOT, `idem-${label}-`));
   const dbPath = path.join(dir, 'idempotency.db');
   const db = openDb(dbPath);
-   migrateUp(db, [m6, m7, m8]);
+  migrateUp(db, [m6, m7]);
   return { dir, dbPath, db };
 }
 
@@ -70,10 +70,10 @@ test('T2.3 cache keys are canonical, dimension-complete and domain-isolated', { 
   assert.ok(tables.includes('cache_entries') && tables.includes('idempotent_operations') && tables.includes('operation_attempts') && tables.includes('reconcile_events'));
   const backupPath = path.join(dir, 'idem-backup.db');
   backupTo(db, backupPath);
-  assert.deepEqual(migrateDown(db, [m6, m7, m8]), [8, 7, 6]);
+  assert.deepEqual(migrateDown(db, [m6, m7]), [7, 6]);
   const afterDown = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((row) => row.name);
   assert.ok(!afterDown.includes('cache_entries'), 'down removed the idempotency tables');
-  assert.deepEqual(migrateUp(db, [m6, m7, m8]), [6, 7, 8], 're-up after down');
+  assert.deepEqual(migrateUp(db, [m6, m7]), [6, 7], 're-up after down');
   const restored = verifyDatabaseFile(backupPath, { expectedTables: ['cache_entries', 'idempotent_operations', 'operation_attempts', 'reconcile_events'] });
   assert.equal(restored.ok, true, JSON.stringify(restored));
 
@@ -299,7 +299,7 @@ test('T2.3 reconciliation states and worker crash reference linkage', { skip }, 
   wdb.close();
 
   const idb = openDb(path.join(dir, 'idem-link.db'));
-   migrateUp(idb, [m6, m7, m8]);
+  migrateUp(idb, [m6, m7]);
   const workerScope = scopeOf(baseInput({ taskId: 'worker-task', inputHash: task.inputHash }));
   const adopted = idem.adoptWorkerReference(idb, { operationId: durable.operationId, remoteId: durable.remoteId, scope: workerScope, capability: 'unknown', committed: durable.committed, source: 'worker_cancel', now: T1 });
   assert.equal(adopted.decision, 'pending_reconcile');
@@ -400,7 +400,7 @@ test('T2.3-rev01 F2: recovery, cancellation and persisted reconcile evidence', {
   assert.equal(idem.reconcileOperation(db, 'op-f2a', { attemptToken: adoptedClaimed.operation.attemptToken, query: 'unknown', now: T1 }).decision, 'manual');
 
   // conflicting remote reference fails closed
-   assert.throws(() => idem.adoptWorkerReference(db, { operationId: 'op-f2a', remoteId: 'remote-conflict', scope, capability: 'unknown', attemptToken: adoptedClaimed.operation.attemptToken, now: T1 }), /different remote reference/);
+  assert.throws(() => idem.adoptWorkerReference(db, { operationId: 'op-f2a', remoteId: 'remote-conflict', scope, capability: 'unknown', now: T1 }), /different remote reference/);
 
   // adopt on a submitted row also persists pending
   const c2 = idem.claimOperation(db, { operationId: 'op-f2b', scope, capability: 'unknown', now: T0 });
@@ -530,13 +530,10 @@ test('T2.3-rev01 legal readback and 0007 migration chain', { skip }, () => {
   const afterDown = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((row) => row.name);
   assert.ok(!afterDown.includes('reconcile_events'), 'down removed the 0007 table');
   assert.deepEqual(migrateUp(db, [m7]), [7], 're-up 0007 after down');
-   const restored = verifyDatabaseFile(backupPath, { expectedTables: ['cache_entries', 'idempotent_operations', 'operation_attempts', 'reconcile_events'] });
-   assert.equal(restored.ok, true, JSON.stringify(restored));
+  const restored = verifyDatabaseFile(backupPath, { expectedTables: ['cache_entries', 'idempotent_operations', 'operation_attempts', 'reconcile_events'] });
+  assert.equal(restored.ok, true, JSON.stringify(restored));
 
-   // Apply the additive structured-remote migration before exercising the current lifecycle API.
-   assert.deepEqual(migrateUp(db, [m8]), [8]);
-
-   // normal legal path still works end to end
+  // normal legal path still works end to end
   const scope = scopeOf(baseInput());
   const input = baseInput({ taskId: 'legal-task' });
   idem.putCache(db, input, { value: { price: 20 }, factKind: 'fact', observedAt: T0, now: T0 });

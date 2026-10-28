@@ -307,7 +307,7 @@ describe('E-commerce demo server', () => {
 
       fs.writeFileSync(
         path.join(sandbox, '.env.deepseek.local'),
-        `DEEPSEEK_API_KEY=synthetic-test-key\nDEEPSEEK_BASE_URL=${mock.url}\nDEEPSEEK_MODEL=deepseek-flash\nDEEPSEEK_VISION_MODEL=vision-model\nDEEPSEEK_TIMEOUT_MS=1500\nPORT=0\n`
+        `DEEPSEEK_API_KEY=test-key\nDEEPSEEK_BASE_URL=${mock.url}\nDEEPSEEK_MODEL=deepseek-flash\nDEEPSEEK_VISION_MODEL=vision-model\nDEEPSEEK_TIMEOUT_MS=1500\nPORT=0\n`
       );
 
       app = startApp(sandbox, {
@@ -335,7 +335,7 @@ describe('E-commerce demo server', () => {
       assert.equal(result.json.meta.vision, false);
       assert.equal(result.json.meta.usedImages, 0);
       assert.equal(lastProviderRequest.url, '/chat/completions');
-      assert.equal(lastProviderRequest.auth, 'Bearer synthetic-test-key');
+      assert.equal(lastProviderRequest.auth, 'Bearer test-key');
       const sent = JSON.parse(lastProviderRequest.body);
       assert.equal(sent.model, 'deepseek-flash');
       assert.equal(sent.response_format.type, 'json_object');
@@ -579,6 +579,30 @@ describe('E-commerce demo server', () => {
       assert.match(plan.agentBrief, /\.svml/);
     });
 
+    it('serves the two primary workbench modes and ranks user-supplied viral references', async () => {
+      const sourcing = await request(`${baseUrl}/sourcing.html`);
+      assert.equal(sourcing.status, 200);
+      assert.match(sourcing.text, /公开详情页研究/);
+      assert.match(sourcing.text, /sourcing-run/);
+      const ranked = await postJson(baseUrl, '/api/video/rank-candidates', { candidates: [
+        { platform: 'douyin', url: 'https://www.douyin.com/video/1', plays: '1.2万', title: 'A' },
+        { platform: 'douyin', url: 'https://www.douyin.com/video/2', plays: '2万', title: 'B' }
+      ] });
+      assert.equal(ranked.status, 200);
+      assert.equal(ranked.json.data.candidates[0].title, 'B');
+      assert.equal(ranked.json.data.completeSearch, false);
+      const brief = await postJson(baseUrl, '/api/video/analysis-brief', { candidate: ranked.json.data.candidates[0], observations: { rhythm: '快切' } });
+      assert.equal(brief.status, 200);
+      assert.equal(brief.json.data.status, 'draft_requires_review');
+      assert.equal(brief.json.data.rights.publish, false);
+    });
+
+    it('does not guess a Chinese category into an Amazon query', async () => {
+      const result = await postJson(baseUrl, '/api/sourcing/insights', { category: '骑行头盔', userNeed: '夜间通勤' });
+      assert.equal(result.status, 400);
+      assert.equal(result.json.error.code, 'english_keywords_required');
+    });
+
     it('serves the frontend script with the draft tooling', async () => {
       const result = await request(`${baseUrl}/app.js`);
       assert.equal(result.status, 200);
@@ -619,7 +643,7 @@ describe('E-commerce demo server', () => {
       const status = await request(`${baseUrl}/api/reports/status`);
       assert.equal(status.status, 200);
       assert.equal(status.json.data.status, 'idle');
-      assert.equal(status.json.data.source.dataBasis, '用户确认输入与获许可的公开市场证据；不使用卖家后台或未授权数据');
+      assert.equal(status.json.data.source.dataBasis, 'Amazon.com 美国站公开前台；不使用 Seller Central、SP-API、广告 API 或卖家后台');
     });
 
     it('scores a sourcing candidate locally', async () => {
@@ -754,17 +778,17 @@ describe('E-commerce demo server', () => {
     it('analyses pasted public market records', async () => {
       const result = await postJson(baseUrl, '/api/intel/market', {
         dataBasis: 'public_front_end',
-        observedAt: '2026-10-01',
-        text: 'keyword,position,title,brand,price,rating,reviews,bought,badge,note,asin,image,url,store,source,observedAt\nsynthetic helmet,1,Synthetic commuter helmet,Synthetic Brand,39.99,4.6,124,100+ bought in past month,Synthetic badge,commuter,B0SYNTH501,https://m.media-amazon.com/images/I/synthetic-helmet.jpg,https://www.amazon.com/dp/B0SYNTH501,Synthetic Store,synthetic_fixture,2026-10-01'
+        observedAt: '2026-09-21',
+        text: 'keyword,position,title,brand,price,rating,reviews,bought,badge,note,asin,image,url,store,source,observedAt\nbike helmet,1,Adult Bike Helmet with MIPS,BrandA,39.99,4.6,12453,10K+ bought in past month,Amazon\'s Choice,commuter,B000123,https://m.media-amazon.com/images/I/helmet.jpg,https://www.amazon.com/dp/B000123,BrandA Store,platform_search,2026-09-21'
       });
       assert.equal(result.status, 200);
       assert.equal(result.json.data.sample, 1);
       assert.ok(['high', 'medium', 'low'].includes(result.json.data.entry.level));
-      assert.equal(result.json.data.demand.monthlyUnitsFloor, 100);
-      assert.equal(result.json.data.demand.cumulativeUnitsEstimate, 124 * 100);
-      assert.equal(result.json.data.products[0].asin, 'B0SYNTH501');
+      assert.equal(result.json.data.demand.monthlyUnitsFloor, 10000);
+      assert.equal(result.json.data.demand.cumulativeUnitsEstimate, 12453 * 100);
+      assert.equal(result.json.data.products[0].asin, 'B000123');
       assert.equal(result.json.data.provenance.dataBasis, 'public_front_end');
-      assert.equal(result.json.data.provenance.observedAt, '2026-10-01');
+      assert.equal(result.json.data.provenance.observedAt, '2026-09-21');
 
       const empty = await postJson(baseUrl, '/api/intel/market', { text: '' });
       assert.equal(empty.status, 400);
@@ -872,18 +896,18 @@ describe('E-commerce demo server', () => {
 
     before(async () => {
       const tmp = path.join(workflowSandbox, 'tmp');
-      const reports = path.join(workflowSandbox, 'tmp', 'report-workflow-artifacts');
+      const reports = path.join(workflowSandbox, 'reports');
       fs.mkdirSync(tmp, { recursive: true });
       fs.mkdirSync(reports, { recursive: true });
       fs.writeFileSync(path.join(tmp, 'report-session-secret'), secret);
       producerCookie = signedCookie(producerSessionId);
-      const competitorName = 'competitor-research_test.xlsx';
-      const assessmentName = 'product-market-assessment_test.xlsx';
+      const competitorName = 'Amazon美国站头盔竞品爆款拆解_test.xlsx';
+      const yongbaoName = '永宝产品美国站进入潜力评估_test.xlsx';
       fs.writeFileSync(path.join(reports, competitorName), Buffer.from('PK-competitor-test'));
-      fs.writeFileSync(path.join(reports, assessmentName), Buffer.from('PK-assessment-test'));
+      fs.writeFileSync(path.join(reports, yongbaoName), Buffer.from('PK-yongbao-test'));
       fs.writeFileSync(path.join(tmp, 'report-workflow-latest.json'), JSON.stringify({
         competitor: { file: { fileName: competitorName, downloadUrl: '/api/reports/download/competitor' } },
-        assessment: { file: { fileName: assessmentName, downloadUrl: '/api/reports/download/assessment' } }
+        yongbao: { file: { fileName: yongbaoName, downloadUrl: '/api/reports/download/yongbao' } }
       }));
       fs.writeFileSync(path.join(tmp, 'report-workflow-state.json'), JSON.stringify({
         status: 'completed', jobId: 'static-report-test', revision: 4, buildVersion: 2,
@@ -915,7 +939,7 @@ describe('E-commerce demo server', () => {
       assert.match(reviewerSession.headers.get('set-cookie') || '', /SameSite=Strict/);
       assert.notEqual(reviewerSession.json.data.sessionId, producerSessionId);
 
-      for (const kind of ['competitor', 'assessment']) {
+      for (const kind of ['competitor', 'yongbao']) {
         const blocked = await authedRequest(`/api/reports/download/${kind}`, reviewer.cookie);
         assert.equal(blocked.status, 409);
         assert.equal(blocked.json.error.code, 'release_blocked');
@@ -955,14 +979,14 @@ describe('E-commerce demo server', () => {
     it('serves both static workbooks only when the persisted review record is approved', async () => {
       const approvedSandbox = prepareSandbox();
       const tmp = path.join(approvedSandbox, 'tmp');
-      const reports = path.join(approvedSandbox, 'tmp', 'report-workflow-artifacts');
+      const reports = path.join(approvedSandbox, 'reports');
       fs.mkdirSync(tmp, { recursive: true });
       fs.mkdirSync(reports, { recursive: true });
       fs.writeFileSync(path.join(tmp, 'report-session-secret'), secret);
-      const competitorName = 'competitor-research_approved.xlsx';
-      const assessmentName = 'product-market-assessment_approved.xlsx';
+      const competitorName = 'Amazon美国站头盔竞品爆款拆解_approved.xlsx';
+      const yongbaoName = '永宝产品美国站进入潜力评估_approved.xlsx';
       fs.writeFileSync(path.join(reports, competitorName), Buffer.from('PK-approved-competitor'));
-      fs.writeFileSync(path.join(reports, assessmentName), Buffer.from('PK-approved-assessment'));
+      fs.writeFileSync(path.join(reports, yongbaoName), Buffer.from('PK-approved-yongbao'));
       fs.writeFileSync(path.join(tmp, 'report-workflow-state.json'), JSON.stringify({
         status: 'completed', jobId: 'approved-static-report', revision: 5, buildVersion: 3,
         producer: { name: 'Producer', sessionId: producerSessionId },
@@ -976,7 +1000,7 @@ describe('E-commerce demo server', () => {
       const app = startApp(approvedSandbox, { PORT: '0' });
       try {
         const baseUrl = await app.ready;
-        for (const [kind, marker] of [['competitor', 'PK-approved-competitor'], ['assessment', 'PK-approved-assessment']]) {
+        for (const [kind, marker] of [['competitor', 'PK-approved-competitor'], ['yongbao', 'PK-approved-yongbao']]) {
           const response = await request(`${baseUrl}/api/reports/download/${kind}`);
           assert.equal(response.status, 200);
           assert.match(response.headers.get('content-type') || '', /spreadsheetml/);
@@ -1188,35 +1212,39 @@ trailer << /Root 1 0 R >>
       assert.equal(created.json.data.analysis.categoryHypotheses[0].rulePackId, 'unknown-v1');
     });
 
-    it('builds a generic no-PDF workbook preview while the download gate stays closed', async () => {
+    it('serves saved no-PDF image evidence to workbook previews while the download gate stays closed', async () => {
       const created = await postJson(jobBaseUrl, '/api/reports/jobs', {
-        taskType: 'track_analysis', brief: { category: 'Synthetic travel accessories', marketplace: 'Amazon.com' }
+        taskType: 'track_analysis', brief: { category: 'Cycling helmets', marketplace: 'Amazon.com' }
       });
       const jobId = created.json.data.jobId;
       const screenshotDataUrl = `data:image/png;base64,${TINY_PNG_BASE64}`;
       const confirmed = await postJson(jobBaseUrl, `/api/reports/jobs/${jobId}/confirm`, {
         revision: 1,
         corrections: { productCandidates: [{
-          candidateId: 'preview-SYNTH-001', model: 'SYNTH-001', displayName: 'Synthetic travel accessory', modelConfirmed: false,
-          cost: { amount: 12.5, currency: 'CNY', unit: 'CNY/piece', incoterm: 'synthetic scenario', variant: 'standard configuration', fxToUSD: null, fxDate: '', confirmed: false, sourceLocation: 'synthetic-catalog.png' },
+          candidateId: 'preview-H0-022', model: 'H0-022', displayName: '成人无灯基础款', modelConfirmed: false,
+          trialImport: { sampleId: 'helmet-mvp-trial-2026-09-29', importedStatus: 'draft; not approved' },
+          sourceScreenshot: 'H0-022.jpg', sourceFileModifiedLocal: '2026-09-23',
+          productDescriptionFromScreenshot: 'Adult cycling helmet; supplier screenshot claims certification; not independently verified.',
+          cost: { amount: 16, currency: 'CNY', unit: 'CNY/顶', incoterm: '待供应商核实', variant: 'standard helmet, no light', fxToUSD: null, fxDate: '', confirmed: false, sourceLocation: 'H0-022.jpg' },
           costEvidenceDataUrl: screenshotDataUrl,
-          shipping: { volumetricDivisor: 5000, divisorConfirmed: false, confirmed: false, cartons: [{ cartonCount: 1, unitsPerCarton: 20, lengthCm: 40, widthCm: 30, heightCm: 20, grossKg: 4 }], rate: { perKg: '', currency: 'CNY', magneticInspectionPerShipment: 3, magneticFeeApplicable: 'unknown', confirmed: false } },
+          shipping: { volumetricDivisor: 5000, divisorConfirmed: false, confirmed: false, cartons: [{ cartonCount: 1, unitsPerCarton: 20, lengthCm: 57, widthCm: 46, heightCm: 56, grossKg: 7.6 }], illustrativeRatePerKg: 55.7, illustrativeRateSource: 'Conditional example only', rate: { perKg: '', currency: 'CNY', magneticInspectionPerShipment: 480, magneticFeeApplicable: 'unknown', confirmed: false } },
           batteryType: 'unknown', batteryTypeConfirmed: false, fees: { confirmed: false },
-          competitors: [{ asin: 'B0SYNTH210', url: 'https://www.amazon.com/dp/B0SYNTH210', title: 'Synthetic accessory', brand: 'Synthetic Brand', variantLabel: 'Standard', price: 45.99, currency: 'USD', observedAt: '2026-10-01T20:07:58+08:00', similarity: 'similar', matchConfirmed: true, sourceType: 'user_screenshot', screenshotDataUrl, screenshotReference: 'synthetic-pdp.png', reviewsVisible: [{ rating: 5, title: 'Useful', text: 'Synthetic review.', chineseTranslation: '合成评论翻译。', reviewId: 'SYNTH-REVIEW-001', reviewUrl: 'https://www.amazon.com/gp/customer-reviews/SYNTH-REVIEW-001?ASIN=B0SYNTH210' }] }]
+          competitors: [{ asin: 'B0FTS7RHR3', url: 'https://www.amazon.com/dp/B0FTS7RHR3', title: 'ROCKBROS', brand: 'ROCKBROS', variantLabel: 'Large / no light', price: 45.99, currency: 'USD', observedAt: '2026-09-29T20:07:58+08:00', similarity: 'similar', matchConfirmed: true, sourceType: 'user_trial_draft', screenshotDataUrl, screenshotReference: 'pdp.jpg', reviewsVisible: [{ rating: 5, title: 'Comfortable', text: 'Original review.', chineseTranslation: '中文翻译。', reviewId: 'R1234567890', reviewUrl: 'https://www.amazon.com/gp/customer-reviews/R1234567890?ASIN=B0FTS7RHR3' }] }]
         }] }
       });
       assert.equal(confirmed.status, 200);
       const build = await postJson(jobBaseUrl, `/api/reports/jobs/${jobId}/build`, { revision: 2 });
       assert.equal(build.status, 200);
-      assert.ok(build.json.data.artifacts[0].filePath.startsWith(path.join(jobSandbox, 'tmp', 'report-jobs')));
+      assert.ok(build.json.data.artifacts[0].filePath.startsWith(path.join(jobSandbox, 'reports')));
       const artifact = build.json.data.artifacts[0];
       const preview = await request(`${jobBaseUrl}/api/reports/jobs/${jobId}/workbooks/${artifact.workbookId}/preview`);
       assert.equal(preview.status, 200);
-      const productSheet = preview.json.data.manifest.sheets.find((sheet) => sheet.name === '01_产品候选');
-      assert.ok(productSheet);
-      const productPreview = await request(`${jobBaseUrl}/api/reports/jobs/${jobId}/workbooks/${artifact.workbookId}/preview?sheetId=${encodeURIComponent(productSheet.sheetId)}`);
-      assert.equal(productPreview.status, 200);
-      assert.ok(productPreview.json.data.sheet.cells.some((cell) => cell.displayValue === 'SYNTH-001'));
+      const productSheet = preview.json.data.manifest.sheets.find((sheet) => sheet.name === '02_供应配置图卡');
+      assert.equal(productSheet.imageEvidence.length, 1);
+      const image = await fetch(`${jobBaseUrl}${productSheet.imageEvidence[0].imageUrl}`);
+      assert.equal(image.status, 200);
+      assert.equal(image.headers.get('content-type'), 'image/png');
+      assert.equal(Buffer.from(await image.arrayBuffer()).subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
       const blockedDownload = await request(`${jobBaseUrl}${artifact.downloadUrl}`);
       assert.equal(blockedDownload.status, 409);
       assert.equal(blockedDownload.json.error.code, 'release_blocked');

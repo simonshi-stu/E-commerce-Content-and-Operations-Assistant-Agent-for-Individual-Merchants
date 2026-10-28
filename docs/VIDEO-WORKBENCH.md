@@ -3,15 +3,17 @@
 ## 当前交付范围
 
 - `/`：跨品类项目简报入口；项目存当前浏览器 localStorage（不存成本/媒体）。
-- `/reports.html?entry=track&category=…&market=…`：打开无 PDF 研究入口，不隐式恢复上一个品类任务。历史静态报告入口仅作为未配置边界，不携带历史业务数据。
+- `/reports.html?entry=track&category=…&market=…`：打开无 PDF 研究入口，不隐式恢复上一个品类任务。历史头盔报告折叠保留，不改写历史事实。
 - `/content.html`：保留原内容草稿编辑器。`/intel.html` 和 `/tasks.html` 原有能力保留。
-- `/video.html`：两条制作路线、商品/人物/素材本地选择与预览、参考视频播放、手动切点、画面变化候选扫描、四维观察笔记、分镜编辑、文字草稿和交接包导出。
+- `/video.html`：两条制作路线、用户记录的抖音/TikTok 候选按播放量排序、商品/人物/素材本地选择与预览、参考视频播放、手动切点、画面变化候选扫描、四维观察笔记、逐字稿、分镜编辑、文字草稿和交接包导出。
 - `POST /api/video/plan`：纯校验/规划，返回 `output.status=not_generated`。不读媒体、不写文件、不联网、不运行 CLI。
+- `POST /api/video/rank-candidates`：只校验和排序用户从已登录平台搜索页记录的候选；`completeSearch=false`，不声称全平台最高播放量。
+- `POST /api/video/analysis-brief`：把候选元数据、逐字稿和用户观察组织成待审核拆解简报，不把参考视频的画面、人物、声音或事实变成可发布素材。
 - `GET /api/video/capabilities`：明确报告 `handoff_only`，不能误报 Hypit Runtime 或生成模型已接通。
 
 ## 尚未接通（不是已完成能力）
 
-没有自动语音转录/完整视频语义分析，没有镜头内商品分割、跟踪、去物或重绘，没有实际 Hypit Build 或 MP4 渲染。画面变化扫描是浏览器约 0.5 秒采样的启发式候选（最多前 60 秒），不是音频节拍或精确切镜检测。四维笔记与模板分镜不会伪装为模型分析。
+没有抖音/TikTok 搜索 API、自动语音转录/完整视频语义分析，没有镜头内商品分割、跟踪、去物或重绘，没有实际 Hypit Build 或 MP4 渲染。画面变化扫描是浏览器约 0.5 秒采样的启发式候选（最多前 60 秒），不是音频节拍或精确切镜检测。四维笔记、逐字稿和模板分镜不会伪装为模型分析。
 
 ## Hypit 交接
 
@@ -28,6 +30,15 @@ JSON 是本工作台的交接格式，**不是 Hypit 可直接执行的 SVML**�
 - [Agent 工作流](https://github.com/hypit-ai/hypit/blob/main/docs/guide/skill.md)：参考笔记/可编辑源文件/账号与预算授权。生成服务独立计费，费用与保真度待实测。
 
 不在本次改动中安装全局 skill/CLI，不更改现有任务注册表、审核与预算机制，不触发真实外部生成或发布。
+
+## 2026-10-28 本地 Runtime 验证
+
+- 已在独立目录 `E:\Projects\ag68-hypit-demo` 使用 `E:\Projects\hypit-runtime` 的本地 CLI
+  执行 `check`、`plan`、`runtime up` 和 Route B `build`。
+- 验证输入为本地 AG68 商品素材；输出为独立目录中的确定性 15 秒 MP4。该结果证明本地
+  Hypit 组合与导出链路可运行，不证明镜头内商品替换、转录、语义分析或远程生成可用。
+- 已将选定抖音参考片保存在该独立目录供本地非发布分析，权利状态仍为未确认；它没有被上传、
+  发布或用于付费生成。候选记录见 `docs/DOUYIN-REFERENCE-7522327170364083496.json`。
 
 ## 验证
 

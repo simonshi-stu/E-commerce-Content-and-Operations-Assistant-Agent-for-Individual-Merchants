@@ -27,7 +27,7 @@ Every externally sourced entry (competitor, price point, cost estimate) must car
   "price": 100,
   "sourceType": "official_store",
   "sourceNote": "https://example.com/item/123",
-  "observedAt": "2026-10-01"
+  "observedAt": "2026-09-20"
 }
 ```
 

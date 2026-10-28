@@ -7,7 +7,7 @@
  *  1 representative : Chinese text PDF + CSV + XLSX real bytes -> located candidates -> explicit
  *                     confirm -> versioned correction -> SQLite close/reopen readback
  *  2 identity       : replay idempotency, cross-supplier/project isolation, parserVersion lineage
- *  3 risks          : ¥ ambiguity, missing unit/currency/incoterm, exact model identity, conflict never auto-fact
+ *  3 risks          : ¥ ambiguity, missing unit/currency/incoterm, H0 != HO, conflict never auto-fact
  *  4 scan protocol  : scanned PDF (DCT JPEG + Flate-gray->PNG + JPX unsupported) + standalone PNG,
  *                     fixture-injected S1 vision contract, invalid/pending pages, default closed, manual entry
  *  5 migration 0011 : up/down/re-up + with-data backup/restore + fingerprint binding
@@ -197,8 +197,8 @@ function writeCsv(name, rows) {
 
 test('T1.7 representative: text PDF + Chinese table real bytes -> located candidates -> confirm/correct -> reopen readback', { skip }, async () => {
   const pdfPath = writeFile('catalog-zh.pdf', buildTextPdf([
-    ['合成资料 中文表', 'MODEL-01 灯型A 出厂价 14元/套 FOB 合成口岸', '数量：100件'],
-    ['MODEL-02 灯型B 出厂价 ¥17 FOB 合成口岸', '本页价格已确认 仅供参考']
+    ['供应商资料 2026 中文表', 'H0 灯型A 出厂价 40元/套 FOB 深圳', '数量：100件'],
+    ['HO 灯型B 出厂价 ¥45 FOB 深圳', '本页价格已确认 仅供参考']
   ]));
   const pdfBytes = fs.readFileSync(pdfPath);
   const supplier = 'sup-pdf';
@@ -206,20 +206,20 @@ test('T1.7 representative: text PDF + Chinese table real bytes -> located candid
   assert.equal(result.status, 'imported');
   assert.equal(result.extraction.rawSha256, sha256Of(pdfBytes), 'source sha256 must be of the real bytes');
   assert.equal(result.extraction.localization.status, 'page_tree_verified');
-  assert.ok(result.extraction.pages[0].textPreview.includes('MODEL-01 灯型A 出厂价 14元/套 FOB 合成口岸'), 'actual extracted segment on page 1');
-  assert.ok(result.extraction.pages[1].textPreview.includes('MODEL-02 灯型B 出厂价 ¥17 FOB 合成口岸'), 'actual extracted segment on page 2');
+  assert.ok(result.extraction.pages[0].textPreview.includes('H0 灯型A 出厂价 40元/套 FOB 深圳'), 'actual extracted segment on page 1');
+  assert.ok(result.extraction.pages[1].textPreview.includes('HO 灯型B 出厂价 ¥45 FOB 深圳'), 'actual extracted segment on page 2');
   // no auto-confirmation from document words like "已确认"
   assert.equal(result.candidates.filter((row) => row.status === 'confirmed').length, 0, 'user words inside the material are not an approval');
   assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM observations WHERE project_id = ?').get(PROJECT).n, 0);
-  const priceCandidate = result.candidates.find((row) => row.field_key === 'purchase_cost' && row.subject_key === 'MODEL-01|灯型=A' && row.supplier_key === supplier);
-  assert.ok(priceCandidate, 'MODEL-01 purchase-cost candidate exists');
+  const priceCandidate = result.candidates.find((row) => row.field_key === 'purchase_cost' && row.subject_key === 'H0|灯型=A' && row.supplier_key === supplier);
+  assert.ok(priceCandidate, 'H0 purchase-cost candidate exists');
   assert.equal(priceCandidate.page_number, 1, 'real page localization (page 1)');
-  assert.equal(priceCandidate.numeric_value, 14);
+  assert.equal(priceCandidate.numeric_value, 40);
   assert.equal(priceCandidate.currency, 'CNY');
   assert.equal(priceCandidate.unit, '套');
   assert.equal(priceCandidate.incoterm, 'FOB');
   assert.equal(priceCandidate.reasons, null, 'fully specified candidate (no unresolved reasons)');
-  const ambiguous = result.candidates.find((row) => row.field_key === 'purchase_cost' && row.subject_key === 'MODEL-02|灯型=B');
+  const ambiguous = result.candidates.find((row) => row.field_key === 'purchase_cost' && row.subject_key === 'HO|灯型=B');
   assert.equal(ambiguous.page_number, 2, 'real page localization (page 2)');
   assert.equal(ambiguous.currency, null, '¥ symbol is never assumed to be CNY');
   assert.match(ambiguous.reasons, /currency_ambiguous_yuan_yen/);
@@ -232,7 +232,7 @@ test('T1.7 representative: text PDF + Chinese table real bytes -> located candid
   assert.equal(confirmed.observation.origin_type, 'seller_statement');
   assert.equal(confirmed.observation.approval_status, 'user_confirmed');
   assert.equal(confirmed.observation.unit, '套');
-  assert.equal(confirmed.observation.value_text, '14');
+  assert.equal(confirmed.observation.value_text, '40');
   assert.throws(() => evidence.setObservationApproval(ctx.db, PROJECT, confirmed.observation.id, 'rejected', { now: T_APPROVE }), /cannot change/);
   // versioned correction of a confirmed candidate
   assert.throws(() => imports.correctCandidate(ctx.db, PROJECT, { candidateId: priceCandidate.candidate_id, correctedValue: '41.5' }), /observedAt is required/);
@@ -253,7 +253,7 @@ test('T1.7 representative: text PDF + Chinese table real bytes -> located candid
   // Chinese CSV (real bytes) + XLSX (ExcelJS real file)
   const csvPath = writeCsv('supplier-zh.csv', [
     ['型号', '灯型', '出厂价', '币种', '单位', '条款', '数量'],
-    ['MODEL-01', '灯型A', '14', 'CNY', '套', 'FOB', '100'],
+    ['H0', '灯型A', '40', 'CNY', '套', 'FOB', '100'],
     ['GL-12', '双灯', '12.5', 'USD', 'pcs', 'EXW', '50']
   ]);
   const csvResult = await imports.importTable(ctx.db, PROJECT, { filePath: csvPath, supplierKey: 'sup-csv' });
@@ -269,12 +269,12 @@ test('T1.7 representative: text PDF + Chinese table real bytes -> located candid
   assert.equal(csvPrice.column_ref, 'C');
   assert.equal(csvPrice.reasons, null);
   const xlsxPath = await writeXlsx('supplier-zh.xlsx', ['型号', '灯型', '出厂价', '币种', '单位', '条款', '数量'], [
-    ['MODEL-01', '灯型A', 14, 'CNY', '套', 'FOB', 100]
+    ['H0', '灯型A', 40, 'CNY', '套', 'FOB', 100]
   ]);
   const xlsxResult = await imports.importTable(ctx.db, PROJECT, { filePath: xlsxPath, supplierKey: 'sup-xlsx' });
   assert.equal(xlsxResult.status, 'imported');
   const xlsxPrice = xlsxResult.candidates.find((row) => row.field_key === 'purchase_cost');
-  assert.equal(xlsxPrice.numeric_value, 14);
+  assert.equal(xlsxPrice.numeric_value, 40);
   assert.equal(xlsxPrice.sheet, '报价表');
   assert.equal(xlsxPrice.row_number, 2);
   assert.equal(xlsxPrice.column_ref, 'C');
@@ -319,12 +319,12 @@ test('T1.7 representative: text PDF + Chinese table real bytes -> located candid
   assert.equal(version1.candidate.supersedes_candidate_id, revLineageCost.candidate_id);
   // physical order != page tree: adapter follows the tree (page numbers stay real)
   const swappedPath = writeFile('catalog-zh-swapped.pdf', buildTextPdf(
-    [['合成资料 中文表格 参数明细 列表', '第一页 MODEL-01 出厂价 14元/套 FOB 合成口岸'], ['合成资料 中文表格 参数明细 列表', '第二页 MODEL-02 出厂价 ¥17 FOB 合成口岸']],
+    [['供应商附加资料 中文表格 参数明细 列表', '第一页 H0 出厂价 40元/套 FOB 深圳'], ['供应商附加资料 中文表格 参数明细 列表', '第二页 HO 出厂价 ¥45 FOB 深圳']],
     { physicalOrder: [1, 2, 5, 6, 3, 4, 7] }
   ));
   const swapped = imports.importPdfText(ctx.db, PROJECT, { filePath: swappedPath, supplierKey: 'sup-swap' });
   assert.equal(swapped.extraction.localization.status, 'page_tree_order_differs');
-  const swappedPageTwo = swapped.candidates.find((row) => row.field_key === 'purchase_cost' && row.subject_key === 'MODEL-02');
+  const swappedPageTwo = swapped.candidates.find((row) => row.field_key === 'purchase_cost' && row.subject_key === 'HO');
   assert.equal(swappedPageTwo.page_number, 2, 'page number follows the page tree, not physical object order');
   // SQLite close/reopen readback (not an in-memory map)
   reopenMain();
@@ -343,7 +343,7 @@ test('T1.7 representative: text PDF + Chinese table real bytes -> located candid
 // ---------- 2. identity ----------
 
 test('T1.7 identity: replay idempotency, cross-supplier/project isolation, parserVersion lineage', { skip }, async () => {
-  const csvPath = writeCsv('identity.csv', [['型号', '出厂价', '币种', '单位', '条款'], ['MODEL-01', '14', 'CNY', '套', 'FOB']]);
+  const csvPath = writeCsv('identity.csv', [['型号', '出厂价', '币种', '单位', '条款'], ['H0', '40', 'CNY', '套', 'FOB']]);
   const first = await imports.importTable(ctx.db, PROJECT, { filePath: csvPath, supplierKey: 'sup-id-a' });
   assert.equal(first.status, 'imported');
   const firstCounts = first.counts;
@@ -379,10 +379,10 @@ test('T1.7 identity: replay idempotency, cross-supplier/project isolation, parse
 
 // ---------- 3. risks ----------
 
-test('T1.7 risks: ¥ ambiguity, missing pieces, exact model identity, conflict never auto-fact', { skip }, async () => {
-  assert.equal(fields.modelIdentity('MODEL-01') === fields.modelIdentity('MODEL-02'), false, 'case-exact model identity');
+test('T1.7 risks: ¥ ambiguity, missing pieces, H0 != HO, conflict never auto-fact', { skip }, async () => {
+  assert.equal(fields.modelIdentity('H0') === fields.modelIdentity('HO'), false, 'case-exact model identity');
   // F1 rev-01: contradictory explicit currency cues stay conflicting with the original snippet
-  const contradictoryLine = 'SOL-02 出厂价 $14 CNY/pcs FOB';
+  const contradictoryLine = 'SOL-02 出厂价 $40 CNY/pcs FOB';
   const contradictory = fields.detectLineFields(contradictoryLine).find((row) => row.fieldKey === 'purchase_cost');
   assert.equal(contradictory.currency, null, 'contradictory cues are never silently chosen');
   assert.ok(contradictory.reasons.includes('currency_conflict'));
@@ -406,12 +406,12 @@ test('T1.7 risks: ¥ ambiguity, missing pieces, exact model identity, conflict n
   assert.throws(() => imports.confirmCandidate(ctx.db, PROJECT, { candidateId: dupCosts[0].candidate_id, observedAt: T_OBS }), /unresolved conditions/, 'conflicting quotes are never auto-confirmed');
   const cleanPath = writeCsv('risk-clean.csv', [
     ['型号', '灯型', '出厂价', '币种', '单位', '条款', '数量'],
-    ['MODEL-01', '灯型A', '14', 'CNY', '套', 'FOB', '100'],
-    ['MODEL-02', '灯型B', '¥17', '', '', 'FOB', ''],
+    ['H0', '灯型A', '40', 'CNY', '套', 'FOB', '100'],
+    ['HO', '灯型B', '¥45', '', '', 'FOB', ''],
     ['GL-12', '双灯', '40', '', '', '', '']
   ]);
   const clean = await imports.importTable(ctx.db, PROJECT, { filePath: cleanPath, supplierKey: 'sup-risk' });
-  const hoPrice = clean.candidates.find((row) => row.field_key === 'purchase_cost' && row.subject_key === 'MODEL-02|灯型=灯型B');
+  const hoPrice = clean.candidates.find((row) => row.field_key === 'purchase_cost' && row.subject_key === 'HO|灯型=灯型B');
   assert.equal(hoPrice.currency, null, '¥ never guessed to CNY');
   assert.match(hoPrice.reasons, /currency_ambiguous_yuan_yen/);
   assert.match(hoPrice.reasons, /missing_unit/);
@@ -426,8 +426,8 @@ test('T1.7 risks: ¥ ambiguity, missing pieces, exact model identity, conflict n
   assert.throws(() => imports.confirmCandidate(ctx.db, PROJECT, { candidateId: hoPrice.candidate_id, observedAt: T_OBS }), /unresolved conditions/);
   assert.throws(() => imports.confirmCandidate(ctx.db, PROJECT, { candidateId: barePrice.candidate_id, observedAt: T_OBS }), /unresolved conditions/);
   const modelRows = clean.candidates.filter((row) => row.field_key === 'model');
-  assert.deepEqual(modelRows.map((row) => row.raw_value).sort(), ['GL-12', 'MODEL-01', 'MODEL-02'], 'exact model identities stay separate (never merged)');
-  const h0Price = clean.candidates.find((row) => row.field_key === 'purchase_cost' && row.subject_key === 'MODEL-01|灯型=灯型A');
+  assert.deepEqual(modelRows.map((row) => row.raw_value).sort(), ['GL-12', 'H0', 'HO'], 'H0 and HO stay separate (never merged)');
+  const h0Price = clean.candidates.find((row) => row.field_key === 'purchase_cost' && row.subject_key === 'H0|灯型=灯型A');
   assert.equal(h0Price.reasons, null);
   const correctedNoUnit = imports.correctCandidate(ctx.db, PROJECT, { candidateId: hoPrice.candidate_id, correctedValue: '50', observedAt: T_OBS, now: T_OBS });
   assert.match(correctedNoUnit.candidate.reasons, /missing_unit/, 'an unresolved unit is never erased by a correction');
@@ -435,8 +435,8 @@ test('T1.7 risks: ¥ ambiguity, missing pieces, exact model identity, conflict n
   // conflict fixture: same model, two distinct prices -> both flagged, neither becomes a fact
   const conflictPath = writeCsv('risk-conflict.csv', [
     ['型号', '出厂价', '币种', '单位', '条款'],
-    ['MODEL-01', '14', 'CNY', '套', 'FOB'],
-    ['MODEL-01', '16', 'CNY', '套', 'FOB']
+    ['H0', '40', 'CNY', '套', 'FOB'],
+    ['H0', '60', 'CNY', '套', 'FOB']
   ]);
   const conflict = await imports.importTable(ctx.db, PROJECT, { filePath: conflictPath, supplierKey: 'sup-conflict' });
   const conflictPrices = conflict.candidates.filter((row) => row.field_key === 'purchase_cost');
@@ -466,7 +466,7 @@ test('T1.7 scan: fixture-injected S1 vision contract, invalid/pending -> unknown
   assert.equal(imports.listDocuments(ctx.db, PROJECT).length, docsBefore, 'blocked scan writes nothing');
   // manual entry path stays available and is explicitly user-sourced
   const manual = imports.addManualCandidate(ctx.db, PROJECT, {
-    filePath: scansPath, supplierKey: 'scan-sup', fieldKey: 'purchase_cost', rawValue: '14', unit: '套', currency: 'CNY', incoterm: 'FOB', subjectKey: 'MODEL-01'
+    filePath: scansPath, supplierKey: 'scan-sup', fieldKey: 'purchase_cost', rawValue: '40', unit: '套', currency: 'CNY', incoterm: 'FOB', subjectKey: 'H0'
   });
   assert.equal(manual.status, 'imported');
   assert.equal(manual.candidate.method, 'manual_entry');
@@ -478,8 +478,8 @@ test('T1.7 scan: fixture-injected S1 vision contract, invalid/pending -> unknown
   const okTransport = async (request) => {
     requests.push(request);
     const lines = requests.length === 1
-      ? [{ text: 'MODEL-01 出厂价 14元/套 FOB 合成口岸', x: 0, y: 0, w: 1, h: 1 }, { text: '数量：100件' }]
-      : [{ text: 'MODEL-02 出厂价 ¥17 FOB 合成口岸' }];
+      ? [{ text: 'H0 出厂价 40元/套 FOB 深圳', x: 0, y: 0, w: 1, h: 1 }, { text: '数量：100件' }]
+      : [{ text: 'HO 出厂价 ¥45 FOB 深圳' }];
     return { kind: 'response', httpStatus: 200, body: { id: `scan-remote-${requests.length}`, choices: [{ message: { content: JSON.stringify({ lines }) } }], usage: { prompt_tokens: 2500, completion_tokens: 50 } } };
   };
   const scanned = await imports.importScan(ctx.db, PROJECT, { filePath: scansPath, supplierKey: 'scan-ok', fixtureTransport: okTransport });
@@ -493,12 +493,12 @@ test('T1.7 scan: fixture-injected S1 vision contract, invalid/pending -> unknown
   const pageStatuses = scanned.pages.map((page) => page.status);
   assert.deepEqual(pageStatuses, ['ocr_succeeded', 'ocr_succeeded', 'unsupported'], 'bounded per-page statuses (JPX explicitly unsupported)');
   assert.equal(scanned.pages[2].reason, 'filter_unsupported:JPXDecode');
-  const jpegSnippet = scanned.candidates.find((row) => row.field_key === 'purchase_cost' && row.subject_key === 'MODEL-01');
+  const jpegSnippet = scanned.candidates.find((row) => row.field_key === 'purchase_cost' && row.subject_key === 'H0');
   assert.equal(jpegSnippet.page_number, 1);
   assert.equal(jpegSnippet.image_object, '9', 'real image object reference (catalog=1, pages=2, page pairs 3..8, images from 9)');
   assert.ok(jpegSnippet.image_sha256 && jpegSnippet.image_sha256.length === 64);
   assert.equal(jpegSnippet.region_json, JSON.stringify({ x: 0, y: 0, w: 1, h: 1, unit: 'px' }));
-  const pngCandidate = scanned.candidates.find((row) => row.field_key === 'purchase_cost' && row.subject_key === 'MODEL-02');
+  const pngCandidate = scanned.candidates.find((row) => row.field_key === 'purchase_cost' && row.subject_key === 'HO');
   assert.equal(pngCandidate.page_number, 2, 'Flate-gray page converted to a real PNG and processed');
   // invalid output -> unknown (no candidates), pending -> unknown
   const invalid = await imports.importScan(ctx.db, PROJECT, {
@@ -599,7 +599,7 @@ test('T1.7 migration: 0011 up/down/re-up + with-data backup/restore + fingerprin
   let db = openDb(dbPath);
   const ran = migrateUp(db, [core, m3, m11]);
   assert.deepEqual(ran, [1, 3, 11]);
-  const csvPath = writeCsv('migration-mini.csv', [['型号', '出厂价', '币种', '单位', '条款'], ['MODEL-01', '14', 'CNY', '套', 'FOB']]);
+  const csvPath = writeCsv('migration-mini.csv', [['型号', '出厂价', '币种', '单位', '条款'], ['H0', '40', 'CNY', '套', 'FOB']]);
   const imported = await imports.importTable(db, PROJECT, { filePath: csvPath, supplierKey: 'sup-mig' });
   assert.equal(imported.status, 'imported');
   const backupPath = path.join(dir, 'with-data-backup.db');

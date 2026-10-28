@@ -552,11 +552,11 @@ test('T3.1 evidence fidelity: attribution, primary-offer price isolation and raw
       runnerAuthority: { projectId: PROJECT, brand: BRAND, market: 'US' },
       routes: [
         routeFor(ASIN, PDP_FIXTURE),
-        routeFor('B0SYNTH411', PDP_CONFLICT_FIXTURE.replace(`value="${ASIN}"`, 'value="B0SYNTH411"')),
-        routeFor('B0SYNTH412', PDP_NO_VARIATION_FIXTURE.replace(`value="${ASIN}"`, 'value="B0SYNTH412"')),
-        routeFor('B0SYNTH413', PDP_UNKNOWN_CURRENCY_FIXTURE.replace(`value="${ASIN}"`, 'value="B0SYNTH413"')),
-        routeFor('B0SYNTH414', PDP_NO_RATING_FIXTURE.replace(`value="${ASIN}"`, 'value="B0SYNTH414"')),
-        routeFor('B0SYNTH415', PDP_NO_OBSERVED_FIXTURE.replace(`value="${ASIN}"`, 'value="B0SYNTH415"'))
+        routeFor('B0CNFLCT01', PDP_CONFLICT_FIXTURE.replace(`value="${ASIN}"`, 'value="B0CNFLCT01"')),
+        routeFor('B0NOVARNT1', PDP_NO_VARIATION_FIXTURE.replace(`value="${ASIN}"`, 'value="B0NOVARNT1"')),
+        routeFor('B0UNKCUR01', PDP_UNKNOWN_CURRENCY_FIXTURE.replace(`value="${ASIN}"`, 'value="B0UNKCUR01"')),
+        routeFor('B0NORATNG1', PDP_NO_RATING_FIXTURE.replace(`value="${ASIN}"`, 'value="B0NORATNG1"')),
+        routeFor('B0NOOBSRV1', PDP_NO_OBSERVED_FIXTURE.replace(`value="${ASIN}"`, 'value="B0NOOBSRV1"'))
       ]
     });
     const obs = async (asin, variantLabel = 'Blue, 12cm') => {
@@ -596,23 +596,23 @@ test('T3.1 evidence fidelity: attribution, primary-offer price isolation and raw
     assert.equal(strikeOut.observation.price.amountMicros, 39990000);
     assert.deepEqual(strikeOut.observation.priceCandidates, ['$39.99']);
     assert.deepEqual(strikeOut.observation.excludedPrices, [{ amountText: '$59.99', kind: 'strike' }]);
-    const noVariant = await obs('B0SYNTH412');
+    const noVariant = await obs('B0NOVARNT1');
     assert.equal(noVariant.status, 'candidate');
     assert.ok(noVariant.reasons.includes('variant_selection_missing'));
     assert.equal(noVariant.price.observed, false);
-    const conflict = await obs('B0SYNTH411');
+    const conflict = await obs('B0CNFLCT01');
     assert.equal(conflict.status, 'candidate');
     assert.ok(conflict.reasons.includes('price_conflict'));
     assert.equal(conflict.price.observed, false, 'a conflicting price is never reduced to the lowest one');
     assert.equal(conflict.priceCandidates.length, 2);
-    const unknownCurrency = await obs('B0SYNTH413');
+    const unknownCurrency = await obs('B0UNKCUR01');
     assert.equal(unknownCurrency.status, 'candidate');
     assert.ok(unknownCurrency.reasons.includes('currency_unknown'));
     assert.equal(unknownCurrency.price.currency, 'unknown');
-    const noRating = await obs('B0SYNTH414');
+    const noRating = await obs('B0NORATNG1');
     assert.equal(noRating.status, 'observed', 'a missing review block does not block the price');
     assert.equal(noRating.rating.observed, false);
-    const noObserved = await obs('B0SYNTH415');
+    const noObserved = await obs('B0NOOBSRV1');
     assert.equal(noObserved.provenance.observedAtKnown, false);
     assert.equal(noObserved.provenance.observedAt, '');
     assert.equal(noObserved.provenance.fetchedAt, NOW);

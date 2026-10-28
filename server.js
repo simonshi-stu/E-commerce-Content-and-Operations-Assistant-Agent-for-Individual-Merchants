@@ -16,12 +16,14 @@ const { buildPricing } = require('./lib/pricing');
 const { normalizeLocale, uiMessage } = require('./lib/messages');
 const { MAX_BODY_BYTES, validateInput } = require('./lib/validate');
 const { generateContent, interpretIntel } = require('./lib/provider');
-const { catalogQueries, createAmazonResearchService } = require('./lib/amazon-research');
+const { catalogQueries, createAmazonResearchService, researchPublicAmazon } = require('./lib/amazon-research');
+const { buildFeatureDefinitions, summarizeCategory } = require('./lib/product-insights');
 const { createReportWorkflowService, resolveReportDownload } = require('./lib/report-workflow');
 const { createReportJobs } = require('./lib/report-jobs');
 const { createTasksHttp } = require('./lib/commerce/http.js');
 const { MAX_PDF_BYTES } = require('./lib/pdf-catalog');
 const { capabilities: videoCapabilities, createVideoPlan } = require('./lib/video-workbench');
+const { buildAnalysisBrief, rankCandidates } = require('./lib/viral-replica');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -202,6 +204,27 @@ function readJson(req) {
     });
     req.on('error', () => reject(Object.assign(new Error('Unable to read request.'), { code: 'invalid_request' })));
   });
+}
+
+function textList(value, maxItems = 12, maxLength = 160) {
+  const values = Array.isArray(value) ? value : String(value || '').split(/[\r\n,;，；]+/);
+  return values.map((item) => String(item || '').trim().slice(0, maxLength)).filter(Boolean).slice(0, maxItems);
+}
+
+function sourcingQueries(body, category, userNeed) {
+  const explicit = textList(body && (body.queries || body.keywords), 8, 160);
+  if (explicit.length) {
+    if (explicit.some((query) => !/^[\x00-\x7F]+$/.test(query))) {
+      throw Object.assign(new Error('Amazon 公开页检索词请填写英文；中文需求可保留在需求字段。'), { code: 'english_keywords_required' });
+    }
+    return explicit;
+  }
+  if (!/^[\x00-\x7F]+$/.test(category)) {
+    throw Object.assign(new Error('请补充英文 Amazon 检索词；系统不会把中文品类自动猜成英文关键词。'), { code: 'english_keywords_required' });
+  }
+  const need = String(userNeed || '').trim();
+  const queries = [need && /^[\x00-\x7F]+$/.test(need) ? `${need} ${category}` : category];
+  return [...new Set(queries.map((query) => query.trim()).filter(Boolean))].slice(0, 8);
 }
 
 function jobErrorStatus(code) {
@@ -441,6 +464,22 @@ async function handleRequest(req, res) {
   if (req.method === 'GET' && url.pathname === '/api/video/capabilities') {
     return sendJson(res, 200, { data: videoCapabilities() });
   }
+  if (req.method === 'POST' && url.pathname === '/api/video/rank-candidates') {
+    try {
+      const body = await readJson(req);
+      return sendJson(res, 200, { data: rankCandidates(body && body.candidates) });
+    } catch (error) {
+      return sendError(res, error.code === 'too_large' ? 413 : 400, error.code || 'invalid_viral_candidate', error.message || '爆款候选无效。');
+    }
+  }
+  if (req.method === 'POST' && url.pathname === '/api/video/analysis-brief') {
+    try {
+      const body = await readJson(req);
+      return sendJson(res, 200, { data: buildAnalysisBrief(body || {}) });
+    } catch (error) {
+      return sendError(res, error.code === 'too_large' ? 413 : 400, error.code || 'invalid_viral_brief', error.message || '爆款拆解简报无效。');
+    }
+  }
   if (req.method === 'POST' && url.pathname === '/api/video/plan') {
     try {
       const body = await readJson(req);
@@ -527,6 +566,33 @@ async function handleRequest(req, res) {
     } catch (error) {
       if (error.code === 'too_large') return sendError(res, 413, 'too_large', 'Request body is too large.');
       return sendError(res, 400, error.code || 'invalid_json', 'Research request must be valid JSON.');
+    }
+  }
+  if (req.method === 'POST' && url.pathname === '/api/sourcing/insights') {
+    try {
+      const body = await readJson(req);
+      const category = String(body && body.category || '').trim().slice(0, 160);
+      const userNeed = String(body && (body.userNeed || body.need) || '').trim().slice(0, 500);
+      if (!category) return sendError(res, 400, 'validation', '请先填写产品大类。');
+      const queries = sourcingQueries(body || {}, category, userNeed);
+      const maxProductPages = Math.min(20, Math.max(1, Number.parseInt(body && body.maxProductPages, 10) || 8));
+      const includeReviewPages = body && body.includeReviewPages === true;
+      const result = await researchPublicAmazon({
+        queries,
+        maxSearchResults: Math.min(20, Math.max(1, Number.parseInt(body && body.maxSearchResults, 10) || 10)),
+        maxProductPages,
+        includeReviewPages,
+        delayMs: Math.min(15_000, Math.max(0, Number.parseInt(body && body.delayMs, 10) || 600)),
+        observedAt: String(body && body.observedAt || '').trim().slice(0, 40) || new Date().toISOString().slice(0, 10)
+      });
+      const featureDefinitions = buildFeatureDefinitions({ category, featureHints: textList(body && body.featureHints, 20, 100) });
+      const summary = summarizeCategory(result.records, {
+        category, userNeed, marketplace: 'Amazon.com', queries, observedAt: result.provenance.observedAt, featureDefinitions
+      });
+      return sendJson(res, 200, { data: { ...summary, errors: result.errors, provenance: result.provenance } });
+    } catch (error) {
+      if (error.code === 'too_large') return sendError(res, 413, 'too_large', 'Request body is too large.');
+      return sendError(res, 400, error.code || 'sourcing_research_failed', error.message || '选品研究失败。');
     }
   }
   if (req.method === 'POST' && url.pathname.startsWith('/api/intel/')) {

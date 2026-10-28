@@ -3,8 +3,8 @@
   const $ = (id) => document.getElementById(id);
   const tools = window.VIDEO_TOOLS;
   const DRAFT_KEY = 'sourcing-workbench.video-draft.v1';
-  const textFields = ['product', 'category', 'market', 'facts', 'prohibited', 'duration', 'aspect', 'note-rhythm', 'note-copy', 'note-flow', 'note-atmosphere'];
-  const state = { route: 'replace', assets: [], reference: null, shots: [], cuts: [], plan: null, scanToken: 0, revision: 0, busy: false };
+  const textFields = ['product', 'category', 'market', 'facts', 'prohibited', 'duration', 'aspect', 'note-rhythm', 'note-copy', 'note-flow', 'note-atmosphere', 'transcript'];
+  const state = { route: 'replace', assets: [], reference: null, referenceSource: null, candidates: [], shots: [], cuts: [], plan: null, scanToken: 0, revision: 0, busy: false };
   function node(tag, value, cls) { const item = document.createElement(tag); if (value !== undefined) item.textContent = value; if (cls) item.className = cls; return item; }
   function message(value, error = false) { $('video-status').textContent = value; $('video-status').classList.toggle('error', error); }
   function invalidate() { state.revision += 1; state.plan = null; $('video-plan-result').hidden = true; }
@@ -14,6 +14,48 @@
     document.querySelectorAll('[data-route]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.route === state.route)));
   }
   function assetIndex(asset) { return `asset-${state.assets.indexOf(asset) + 1}`; }
+
+  function formatCount(value) {
+    const amount = Number(value) || 0;
+    if (amount >= 100000000) return `${(amount / 100000000).toFixed(1)}亿`;
+    if (amount >= 10000) return `${(amount / 10000).toFixed(1)}万`;
+    return String(amount);
+  }
+
+  function renderCandidates(result) {
+    state.candidates = result?.candidates || [];
+    const box = $('video-candidate-list'); box.replaceChildren();
+    if (!state.candidates.length) { $('video-candidate-status').textContent = result?.errors?.length ? result.errors.map((item) => item.message).join('；') : '没有有效候选。'; return; }
+    $('video-candidate-status').textContent = `已在 ${state.candidates.length} 条用户输入候选中排序；第 1 名不等于全平台最高播放量。`;
+    state.candidates.forEach((candidate) => {
+      const card = node('article', undefined, `video-candidate${state.referenceSource?.url === candidate.url ? ' is-selected' : ''}`);
+      const head = node('div', undefined, 'video-candidate-head'); head.append(node('strong', `#${candidate.rank}`), node('span', `${formatCount(candidate.plays)} 播放`)); card.append(head);
+      card.append(node('span', candidate.title || '未填写标题'), node('small', `${candidate.creator || '作者未记录'} · ${candidate.duration ? `${candidate.duration}s` : '时长未记录'} · 点赞 ${formatCount(candidate.likes)}`));
+      const link = node('a', candidate.url); link.href = candidate.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; card.append(link);
+      const select = node('button', state.referenceSource?.url === candidate.url ? '已选为参考' : '选为参考', 'quiet-button small'); select.type = 'button'; select.addEventListener('click', () => {
+        state.referenceSource = candidate; $('video-reference-source').value = candidate.url; renderCandidates(result); invalidate(); message('已记录参考来源；仍需上传有权使用的本地参考视频。');
+      }); card.append(select); box.append(card);
+    });
+  }
+
+  $('video-rank-candidates').addEventListener('click', async () => {
+    const raw = $('video-candidates').value.trim();
+    if (!raw) { $('video-candidate-status').textContent = '请先粘贴候选 JSON。'; return; }
+    let candidates;
+    try {
+      const parsed = JSON.parse(raw);
+      candidates = Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+      candidates = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => JSON.parse(line));
+    }
+    candidates = candidates.map((candidate) => ({ ...candidate, platform: candidate.platform || $('video-platform').value }));
+    const button = $('video-rank-candidates'); button.disabled = true; $('video-candidate-status').textContent = '正在校验候选链接和播放量…';
+    try {
+      const response = await fetch('/api/video/rank-candidates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ candidates }) });
+      const body = await response.json(); if (!response.ok) throw new Error(body?.error?.message || `HTTP ${response.status}`); renderCandidates(body.data);
+    } catch (error) { $('video-candidate-status').textContent = error.message || '候选排序失败。'; }
+    finally { button.disabled = false; }
+  });
   function checkedFile(file, role) {
     const image = ['image/png', 'image/jpeg', 'image/webp'].includes(file.type);
     const video = ['video/mp4', 'video/webm', 'video/quicktime'].includes(file.type);
@@ -106,6 +148,7 @@
     $('video-reference-meta').textContent = `${state.reference?.file.name || ''} · ${valid ? `${p.duration.toFixed(1)}s` : '时长无法识别'} · ${p.videoWidth} × ${p.videoHeight} · 参考原片预览`;
   });
   $('video-player').addEventListener('error', () => { $('video-mark-cut').disabled = true; $('video-scan').disabled = true; message('浏览器无法解码此视频，请转为 H.264 MP4 或更换文件。', true); });
+  $('video-reference-source').addEventListener('input', () => { state.referenceSource = $('video-reference-source').value.trim() ? { url: $('video-reference-source').value.trim(), platform: $('video-platform').value, selectionBasis: 'user_supplied_reference' } : null; invalidate(); });
   $('video-mark-cut').addEventListener('click', () => { state.cuts.push($('video-player').currentTime); showCuts(); invalidate(); });
   function seek(video, time) {
     return new Promise((resolve, reject) => {
@@ -167,6 +210,8 @@
       route: state.route, product: $('video-product').value, category: $('video-category').value, market: $('video-market').value,
       facts: $('video-facts').value, prohibited: $('video-prohibited').value, duration: Number($('video-duration').value), aspectRatio: $('video-aspect').value,
       rightsConfirmed: $('video-rights').checked, avatarConsent: $('video-avatar-consent').checked,
+      referenceSource: state.referenceSource || ($('video-reference-source').value.trim() ? { url: $('video-reference-source').value.trim(), platform: $('video-platform').value } : null),
+      referenceTranscript: $('video-transcript').value,
       referenceNotes: Object.fromEntries(['rhythm', 'copy', 'flow', 'atmosphere'].map((k) => [k, $(`video-note-${k}`).value])),
       referenceMeasurements: state.reference && Number.isFinite($('video-player').duration) && $('video-player').duration > 0 ? { duration: $('video-player').duration, cutCandidates: state.cuts } : null,
       assets, shots: state.shots.map((shot) => ({ ...shot, assetId: state.assets.find((a) => a.id === shot.assetId) ? assetIndex(state.assets.find((a) => a.id === shot.assetId)) : '' }))
@@ -193,7 +238,7 @@
   $('video-download-brief').addEventListener('click', () => { if (state.plan) download(state.plan.agentBrief, 'hypit-brief.md', 'text/markdown;charset=utf-8'); });
   $('video-save').addEventListener('click', () => {
     // Never persist files, blob URLs, rights attestations or the generated package.
-    const draft = { schemaVersion: 1, route: state.route, fields: Object.fromEntries(textFields.map((key) => [key, $(`video-${key}`).value])), shots: state.shots.map((shot) => ({ ...shot, assetId: '' })) };
+    const draft = { schemaVersion: 1, route: state.route, fields: Object.fromEntries(textFields.map((key) => [key, $(`video-${key}`).value])), referenceSource: state.referenceSource ? { platform: state.referenceSource.platform, url: state.referenceSource.url, title: state.referenceSource.title || '', creator: state.referenceSource.creator || '', plays: state.referenceSource.plays || null, likes: state.referenceSource.likes || null, selectionBasis: state.referenceSource.selectionBasis || 'user_supplied_reference' } : null, shots: state.shots.map((shot) => ({ ...shot, assetId: '' })) };
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); message('文字与分镜草稿已保存在本浏览器；素材/授权勾选不保存，重开后需重新选择。'); }
     catch { message('浏览器本地存储不可用，未保存。', true); }
   });
@@ -207,6 +252,7 @@
       for (const key of textFields) if (typeof draft.fields?.[key] === 'string') $(`video-${key}`).value = draft.fields[key].slice(0, 4000);
       route(draft.route);
       if (Array.isArray(draft.shots)) state.shots = draft.shots.slice(0, 30).filter((s) => s && typeof s === 'object').map((s) => ({ start: Number(s.start) || 0, end: Number(s.end) || 0, action: String(s.action || '').slice(0, 1000), copy: String(s.copy || '').slice(0, 1000), edit: String(s.edit || '').slice(0, 600), assetId: '' }));
+      if (draft.referenceSource?.url) { state.referenceSource = draft.referenceSource; $('video-reference-source').value = draft.referenceSource.url; }
       message('已恢复文字草稿；素材需重新选择、分镜需重新绑定，权利需重新确认。');
     }
     const theme = localStorage.getItem('ecommerce-content-assistant-theme'); document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';

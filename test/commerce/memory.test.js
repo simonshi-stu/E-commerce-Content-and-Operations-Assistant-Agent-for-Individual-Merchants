@@ -192,13 +192,13 @@ test('effective-time contract: real ISO instants, no early injection, omission i
 
 test('affected legal path: past-dated confirm/correct inject, chain and reopen keep times', { skip }, () => {
   const { db, dbPath } = freshDb('time-legal');
-   const past = '2026-10-01T00:00:00Z';
+  const past = '2026-01-01T00:00:00Z';
   const candidate = memory.createCandidate(db, 'proj-a', { scope: 'product', scopeKey: 'widget-time', ruleKey: 'color', value: 'blue', source: 'synthetic', effectiveAt: past });
   const confirmed = memory.confirmRule(db, 'proj-a', candidate.id).active;
   assert.equal(confirmed.effectiveAt, past);
   assert.deepEqual(memory.getActiveRules(db, 'proj-a', { productKey: 'widget-time' }).map((r) => r.value), ['blue']);
 
-   const query = memory.buildInjectionQuery({ productKey: 'widget-time' }, { asOf: '2026-10-02T00:00:00Z' });
+  const query = memory.buildInjectionQuery({ productKey: 'widget-time' }, { asOf: '2026-06-01T00:00:00Z' });
   assert.ok(query.sql.includes("strftime('%Y-%m-%dT%H:%M:%fZ', effective_at) <= strftime('%Y-%m-%dT%H:%M:%fZ', ?)"), 'SQL gates on the effective instant with millisecond precision');
   assert.deepEqual(query.params.slice(1), ['product', 'widget-time']);
 

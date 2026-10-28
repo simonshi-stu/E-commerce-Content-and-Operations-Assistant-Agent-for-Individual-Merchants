@@ -888,7 +888,7 @@ a.market-product-title:hover { color: var(--accent-2); }
 .report-dropzone:hover, .report-dropzone.is-dragover { background: rgba(99, 102, 241, .08); border-color: var(--accent); }
 .report-dropzone input { height: 1px; opacity: 0; position: absolute; width: 1px; }
 .report-dropzone-title { font-size: .95rem; font-weight: 800; }
-.report-dropzone-hint { color: var(--faint); font-size: .76rem; line-height: 1.5; max-width: 25px; }
+.report-dropzone-hint { color: var(--faint); font-size: .76rem; line-height: 1.5; max-width: 480px; }
 .report-track-grid { margin-top: 4px; }
 .report-page select {
   background: var(--field-bg);
@@ -966,6 +966,8 @@ a.market-product-title:hover { color: var(--accent-2); }
 .report-shipping-rate-options { display: grid; gap: 8px; }
 .report-shipping-rate-option { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; display: grid; gap: 8px; padding: 10px; }
 .report-shipping-rate-option > .report-job-warning { margin: 0; }
+.report-trial-import { margin-top: 12px; }
+.report-trial-import > p { margin: 8px 0; }
 .report-screenshot-field input { font-size: .72rem; }
 .report-pricing-result { border-left: 3px solid var(--accent); color: var(--muted); font-size: .75rem; line-height: 1.5; padding: 8px 10px; }
 .report-pricing-result.not_recommended { border-color: #ef4444; }

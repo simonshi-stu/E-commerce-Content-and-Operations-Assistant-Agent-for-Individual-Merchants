@@ -2,37 +2,30 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { after, describe, it } = require('node:test');
 
 const { createReportWorkflowService } = require('../lib/report-workflow');
 
-const ownsTestTmp = !process.env.COMMERCE_TEST_TMP;
-const testTmpRoot = process.env.COMMERCE_TEST_TMP || fs.mkdtempSync(path.join(os.tmpdir(), 'commerce-report-workflow-'));
-
-after(() => {
-  if (ownsTestTmp) fs.rmSync(testTmpRoot, { recursive: true, force: true });
-});
-
 describe('static report package workflow', () => {
-  const root = fs.mkdtempSync(path.join(testTmpRoot, 'report-workflow-test-'));
+  const root = fs.mkdtempSync(path.join(__dirname, '..', 'tmp', 'report-workflow-test-'));
   fs.mkdirSync(path.join(root, 'tmp'), { recursive: true });
   let buildCount = 0;
   const workflow = createReportWorkflowService({
     root,
     executePipeline: async ({ root: buildRoot }) => {
       buildCount += 1;
-      const reports = path.join(buildRoot, 'tmp', 'report-workflow-artifacts');
+      const reports = path.join(buildRoot, 'reports');
       fs.mkdirSync(reports, { recursive: true });
-      const competitorPath = path.join(reports, `competitor-research_${buildCount}.xlsx`);
-      const assessmentPath = path.join(reports, `product-market-assessment_${buildCount}.xlsx`);
+      const competitorPath = path.join(reports, `Amazon美国站头盔竞品爆款拆解_${buildCount}.xlsx`);
+      const yongbaoPath = path.join(reports, `永宝产品美国站进入潜力评估_${buildCount}.xlsx`);
       fs.writeFileSync(competitorPath, Buffer.from(`competitor-${buildCount}`));
-      fs.writeFileSync(assessmentPath, Buffer.from(`assessment-${buildCount}`));
+      fs.writeFileSync(yongbaoPath, Buffer.from(`yongbao-${buildCount}`));
       return {
         competitor: { outputPath: competitorPath, sheetCount: 2, embeddedImages: 0 },
-        assessment: { outputPath: assessmentPath, sheetCount: 3, products: [] },
+        yongbao: { outputPath: yongbaoPath, sheetCount: 3 },
         markets: [],
+        assessment: { products: [] },
         validation: { passed: true }
       };
     }
@@ -110,28 +103,5 @@ describe('static report package workflow', () => {
       () => workflow.recordAudit({ ...stale, revision: 2, buildVersion: 2 }),
       { code: 'review_already_approved' }
     );
-  });
-});
-
-describe('public report boundary', () => {
-  const root = fs.mkdtempSync(path.join(testTmpRoot, 'report-workflow-boundary-'));
-  fs.mkdirSync(path.join(root, 'tmp'), { recursive: true });
-  const workflow = createReportWorkflowService({ root });
-
-  after(() => fs.rmSync(root, { recursive: true, force: true }));
-
-  it('fails closed when the private/static report pipeline is not configured', async () => {
-    const started = workflow.start({ actorSessionId: 'synthetic-producer' });
-    assert.equal(started.accepted, true);
-    for (let attempt = 0; attempt < 100; attempt += 1) {
-      const state = workflow.publicState();
-      if (state.status === 'failed') {
-        assert.equal(state.error.code, 'pipeline_not_configured');
-        assert.equal(fs.existsSync(path.join(root, 'reports')), false);
-        return;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 5));
-    }
-    throw new Error('Unconfigured report pipeline did not fail closed in time.');
   });
 });

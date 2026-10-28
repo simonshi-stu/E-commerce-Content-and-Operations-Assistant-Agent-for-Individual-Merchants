@@ -264,7 +264,7 @@ test('observedAt requires a real-calendar ISO date or a timezone-explicit timest
     assert.throws(() => packs.validatePack(withObservedAt(bad)), /observedAt/, `observedAt ${bad} must be rejected (valid unit present)`);
   }
   assert.equal(packs.validatePack(withObservedAt('2026-10-09')).facts['measure.value'].observedAt, '2026-10-09', 'date-only precision is kept verbatim');
-   packs.validatePack(withObservedAt('2026-10-01T20:08:00+08:00'));
+  packs.validatePack(withObservedAt('2026-09-29T20:08:00+08:00'));
   packs.validatePack(withObservedAt('2026-10-09T00:00:00.000Z'));
   packs.validatePack(withObservedAt('2024-02-29'));
   packs.validatePack(withObservedAt(null));

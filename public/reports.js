@@ -8,18 +8,18 @@
     zh: {
       eyebrow: 'STAGE 3 · REPORT FACTORY', titleLead: '把公开证据，', titleAccent: '整理成可复用的 Excel 工作台',
        subtitle: '通用报告与无 PDF 任务共用人工确认门；可逐配置核对准入证据、查看带图 Excel 预览，正式下载仍须独立审核。',
-       archiveNote: '下方卡片仅用于展示报告结构，不代表任何真实商品、供应商或利润结论；请以当前任务的配置级证据和人工确认结果为准。',
+       archiveNote: '下方数据底座、评分及 A/B 工作簿卡片属于 2026-09-22 历史报告包，不是当前 9 款 / 16 配置市场准入结论；本次请以已载入任务的配置级准入表和证据预览为准。',
       controlTitle: '生成设置', idle: '等待任务', running: '生成中', completed: '已完成', failed: '生成失败',
       controlHint: '默认复用已经抓取的 Amazon 前台证据，适合快速重新排版。需要更新市场数据时，再开启重新采集。',
-       refreshAmazon: '重新采集 Amazon 商品页', refreshAmazonHint: '只访问 amazon.com 公开商品详情页，不登录、不访问后台；请求数量取决于当前任务。',
+      refreshAmazon: '重新采集 Amazon 商品页', refreshAmazonHint: '只访问 amazon.com 公开商品详情页，不登录、不访问后台；12 款商品约需数十秒。',
       refreshSummary: '重新生成竞品评价归纳', refreshSummaryHint: '使用商品页公开 Customers say 和评价主题；需要配置 DeepSeek API Key。',
       delayLabel: '公开页请求间隔（毫秒）', observedLabel: '观察日期', build: '生成两份 Excel 报告', refresh: '刷新状态',
       boundary: '数据边界：只使用 Amazon.com 公开前台；评论列表页要求登录时不绕过；销量只显示公开购买标签和评论数 ÷ 0.01 的粗估，不伪造后台销量。',
       progressTitle: '工作流进度', progressFoot: '每一步都保留可核验的来源与口径，最后才进入 Excel 排版。', overviewTitle: '当前数据底座',
       marketFlowTitle: '市场拆分结果', scoreFlowTitle: '产品决策结果', detailTitle: '决策明细', detailHint: '把 Excel 首页的结论先放到网页上，下载后仍保留完整逐款 Sheet。',
-       competitorKicker: '公开市场竞品研究', competitorTitle: '公开市场竞品研究', competitorDesc: '按当前任务的关键词和可比配置整理公开商品页、价格、评价和来源证据。',
-       assessmentKicker: '产品进入评估', assessmentTitle: '产品市场进入评估', assessmentDesc: '按型号、品类、证据和配置生成产品页；示例内容仅用于演示结构。', download: '下载 Excel',
-       priorityTitle: '首批推荐', methodTitle: '评分结构', allProducts: '查看全部产品评分', allProductsHint: '按综合分排序；不改变 Excel 的逐款深度 Sheet', stepCatalog: '目录识别', stepCatalogHint: '型号 + 品类去重，变体归并', stepMarket: '市场清洗', stepMarketHint: '按当前任务配置市场分组', stepEvidence: '前台取证', stepEvidenceHint: '图片、价格、评价摘要、配置证据', stepScore: '产品决策', stepScoreHint: '合规硬门槛 + 评分', stepLayout: 'Excel排版', stepLayoutHint: '总览、市场组、逐款产品页', footerLabel: 'Notice:', footer: '这是本地研究和报告生成工具，不会自动发布内容、修改价格或操作平台账号。认证、成本、图片和产品结论仍需人工核验。',
+      competitorKicker: '竞品爆款拆解', competitorTitle: 'Amazon 美国站头盔竞品爆款拆解', competitorDesc: '5 个市场组、每组 3 款爆品、公开商品页图片、bullet、BSR、尺码、Customers say、正负反馈和可复刻方向。',
+      yongbaoKicker: '永宝进入潜力', yongbaoTitle: '永宝产品美国站进入潜力评估', yongbaoDesc: '66 个“型号 + 品类”产品页，逐款中文命名、图片/PDF索引、每个 Size 头围与重量、认证门槛和 100 分评分。', download: '下载 Excel',
+      priorityTitle: '首批推荐', methodTitle: '评分结构', allProducts: '查看全部 66 款产品评分', allProductsHint: '按综合分排序；不改变 Excel 的逐款深度 Sheet', stepCatalog: '目录识别', stepCatalogHint: '型号 + 品类去重，变体归并', stepMarket: '市场清洗', stepMarketHint: '五组关键词、受众证据、展示位', stepEvidence: '前台取证', stepEvidenceHint: '图片、价格、评价摘要、尺码、BSR', stepScore: '产品决策', stepScoreHint: '合规硬门槛 + 100 分评分', stepLayout: 'Excel排版', stepLayoutHint: '总览、市场组、逐款产品页', footerLabel: 'Notice:', footer: '这是本地研究和报告生成工具，不会自动发布内容、修改价格或操作平台账号。认证、成本、图片和产品结论仍需人工核验。',
       noData: '生成报告后，这里会显示结构化结果。', noFile: '尚未生成文件', noPriority: '暂无首批推荐结果。', noMarket: '暂无市场组结果。',
       catalogRows: '目录原始行', productFamilies: '去重产品', amazonRecords: 'Amazon前台记录', aiSummaries: '评价归纳', pdf: 'PDF原图',
       yes: '可用', no: '未提供', sourceBasis: '数据口径', observed: '观察日期', records: '条记录', families: '个产品', summaries: '款已归纳',
@@ -53,18 +53,18 @@
     en: {
       eyebrow: 'STAGE 3 · REPORT FACTORY', titleLead: 'Turn public evidence into ', titleAccent: 'reusable Excel workbooks',
       subtitle: 'Generic reports and no-PDF jobs share manual confirmation gates. Review each configuration and its image evidence in the workbook preview; independent audit is still required before download.',
-       archiveNote: 'The cards below demonstrate report structure only. They do not represent a real product, supplier, or profit conclusion; use the current job’s evidence and manual confirmations.',
+      archiveNote: 'The data foundation, scores, and A/B workbook cards below belong to the 2026-09-22 archive, not the current 9-model / 16-configuration market-entry review. Use the loaded job’s configuration-level admission sheet and evidence preview for this report.',
       controlTitle: 'Build settings', idle: 'Idle', running: 'Building', completed: 'Completed', failed: 'Failed',
       controlHint: 'The default build reuses captured Amazon evidence for a fast rebuild. Turn on refresh only when the public market evidence should be updated.',
-       refreshAmazon: 'Refresh Amazon product pages', refreshAmazonHint: 'Public amazon.com product pages only; no login or seller backend. Request count depends on the current job.',
+      refreshAmazon: 'Refresh Amazon product pages', refreshAmazonHint: 'Public amazon.com product pages only; no login or seller backend. Twelve products may take several seconds.',
       refreshSummary: 'Regenerate competitor commentary', refreshSummaryHint: 'Uses public Customers say and aspect summaries; requires a DeepSeek API key.',
       delayLabel: 'Public-page delay (ms)', observedLabel: 'Observed date', build: 'Build both Excel reports', refresh: 'Refresh status',
       boundary: 'Boundary: Amazon.com public front end only. Login-gated review pages are not bypassed. Demand is shown as public purchase signals and the reviews ÷ 0.01 rough proxy, never backend sales.',
       progressTitle: 'Workflow progress', progressFoot: 'Each step keeps its source and measurement basis before the workbook layout is produced.', overviewTitle: 'Current data foundation',
       marketFlowTitle: 'Market segmentation', scoreFlowTitle: 'Product decisions', detailTitle: 'Decision detail', detailHint: 'The workbook homepage is surfaced here first; the downloaded file keeps the full product-level sheets.',
-       competitorKicker: 'Public market research', competitorTitle: 'Public market competitor research', competitorDesc: 'Organize public product pages, prices, reviews, and source evidence by the current job’s keywords and comparable configurations.',
-       assessmentKicker: 'Product entry assessment', assessmentTitle: 'Product market-entry assessment', assessmentDesc: 'Product sheets are organized by model, category, evidence, and configuration. Example content is structural only.', download: 'Download Excel',
-       priorityTitle: 'First-wave recommendations', methodTitle: 'Scoring model', allProducts: 'View all product scores', allProductsHint: 'Sorted by composite score; the workbook keeps the full product sheets', stepCatalog: 'Catalog identity', stepCatalogHint: 'Deduplicate by model + category', stepMarket: 'Market cleaning', stepMarketHint: 'Configured market groups and evidence', stepEvidence: 'Public evidence', stepEvidenceHint: 'Images, price, review summary, and configuration', stepScore: 'Product decision', stepScoreHint: 'Compliance gate + evidence-based score', stepLayout: 'Excel layout', stepLayoutHint: 'Overview, markets, product sheets', footerLabel: 'Notice:', footer: 'This is a local research and report tool. It never publishes, changes prices, or operates platform accounts. Verify certifications, costs, images, and conclusions manually.',
+      competitorKicker: 'Competitor teardown', competitorTitle: 'Amazon US helmet bestseller teardown', competitorDesc: 'Five market groups, three hits per group, public images, bullets, BSR, sizes, Customers say, feedback, and replicable ideas.',
+      yongbaoKicker: 'Yongbao entry potential', yongbaoTitle: 'Yongbao US entry potential assessment', yongbaoDesc: 'Sixty-six model/category product sheets with Chinese names, PDF index, per-size head circumference and weight, compliance gates, and 100-point scoring.', download: 'Download Excel',
+      priorityTitle: 'First-wave recommendations', methodTitle: 'Scoring model', allProducts: 'View all 66 product scores', allProductsHint: 'Sorted by composite score; the workbook keeps the full product sheets', stepCatalog: 'Catalog identity', stepCatalogHint: 'Deduplicate by model + category', stepMarket: 'Market cleaning', stepMarketHint: 'Five queries, audience evidence, display positions', stepEvidence: 'Public evidence', stepEvidenceHint: 'Images, price, review summary, size, BSR', stepScore: 'Product decision', stepScoreHint: 'Compliance gate + 100-point score', stepLayout: 'Excel layout', stepLayoutHint: 'Overview, markets, product sheets', footerLabel: 'Notice:', footer: 'This is a local research and report tool. It never publishes, changes prices, or operates platform accounts. Verify certifications, costs, images, and conclusions manually.',
       noData: 'Structured results will appear here after a build.', noFile: 'No file generated yet', noPriority: 'No first-wave recommendation yet.', noMarket: 'No market groups yet.',
       catalogRows: 'Catalog rows', productFamilies: 'Deduplicated products', amazonRecords: 'Amazon records', aiSummaries: 'Commentaries', pdf: 'PDF source images',
       yes: 'Available', no: 'Not provided', sourceBasis: 'Data basis', observed: 'Observed', records: ' records', families: ' products', summaries: ' summarized',
@@ -177,7 +177,7 @@
     if (message.includes('复用已有 Amazon')) return 'Reusing existing Amazon public product-page evidence';
     if (message.includes('Amazon公开商品页采集完成')) return 'Amazon public product pages collected';
     if (message.includes('正在构建竞品报告')) return 'Building competitor workbook';
-    if (message.includes('正在构建产品评估报告')) return 'Building assessment workbook';
+    if (message.includes('正在构建永宝评估报告')) return 'Building Yongbao assessment workbook';
     if (message.includes('Excel 报告已生成')) return t('buildCompleted');
     return fallbackKey ? t(fallbackKey) : message;
   }
@@ -394,7 +394,7 @@
       row.append(el('span', null, label), track, el('strong', null, String(value)));
       methodList.append(row);
     });
-     methodList.append(el('p', 'report-score-note', locale === 'zh' ? '品类规则不匹配时，先过证据门槛，再看总分。' : 'A category-rule mismatch is a hard gate before the composite score.'));
+    methodList.append(el('p', 'report-score-note', locale === 'zh' ? '雪盔、马术、攀岩和自行车用途标准不匹配时，先过硬门槛，再看总分。' : 'A standards mismatch is a hard gate for snow, equestrian, climbing, and bike use cases.'));
   }
 
   function renderAllProducts(rows) {
@@ -423,8 +423,8 @@
 
   function renderWorkflowAudit() {
     const files = state?.result
-      ? [state.result.competitor?.file, state.result.assessment?.file]
-      : [state?.availableReports?.competitor, state?.availableReports?.assessment];
+      ? [state.result.competitor?.file, state.result.yongbao?.file]
+      : [state?.availableReports?.competitor, state?.availableReports?.yongbao];
     const hasFiles = files.some(Boolean);
     const visible = Boolean(state && (hasFiles || state.status === 'completed'));
     workflowAuditEl.hidden = !visible;
@@ -550,13 +550,13 @@
     renderSource(state?.source);
     const result = state?.result;
     renderMarket(result?.competitor?.marketGroups);
-    renderScore(result?.assessment);
-    renderPriority(result?.assessment);
-    renderAllProducts(result?.assessment?.rankedProducts);
+    renderScore(result?.yongbao);
+    renderPriority(result?.yongbao);
+    renderAllProducts(result?.yongbao?.rankedProducts);
     renderMethod();
-    const files = result ? { competitor: result.competitor?.file, assessment: result.assessment?.file } : state?.availableReports || {};
+    const files = result ? { competitor: result.competitor?.file, yongbao: result.yongbao?.file } : state?.availableReports || {};
     renderFile('competitor', files?.competitor, result?.competitor, releaseAllowed);
-    renderFile('assessment', files?.assessment, result?.assessment, releaseAllowed);
+    renderFile('yongbao', files?.yongbao, result?.yongbao, releaseAllowed);
     renderWorkflowAudit();
     if (statusKey === 'failed') setStatus(`${state.error?.message || t('failed')}`, true);
     else if (statusKey === 'completed') setStatus(`${progressMessage(state.progress, 'completed')} · ${state.audit?.releaseAllowed ? '独立审核通过；可下载' : '待独立审核；不可交付'}`);
@@ -921,9 +921,9 @@
     const fxRate = jobField('该币种兑 USD 汇率（USD/原币单位）', '', cost.fxToUSD ?? ((cost.currency || extractedCost.currency) === 'USD' ? '1' : ''), '手工确认汇率');
     fxRate.querySelector('input').type = 'number'; fxRate.querySelector('input').step = '0.000001'; fxRate.querySelector('input').min = '0';
     fxRate.querySelector('input').dataset.costField = 'fxToUSD';
-     const fxDate = jobField('汇率日期 / 来源', '', cost.fxDate || '', '如 2026-10-01 / 用户报价');
+    const fxDate = jobField('汇率日期 / 来源', '', cost.fxDate || '', '如 2026-09-29 / 用户报价');
     fxDate.querySelector('input').dataset.costField = 'fxDate';
-     const sourceLocation = jobField('成本来源定位（文件名/页码/行）', '', cost.sourceLocation || '', '如 catalog.pdf / p.2 / row 4');
+    const sourceLocation = jobField('成本来源定位（文件名/页码/行）', '', cost.sourceLocation || '', '如 H0-022.jpg / 价格行2');
     sourceLocation.querySelector('input').dataset.costField = 'sourceLocation';
     costGrid.append(costAmount, currencyLabel, unit, incoterm, variant, fxRate, fxDate, sourceLocation);
     costPanel.append(costGrid);
@@ -1006,17 +1006,17 @@
     const rateCurrency = jobField('运价币种（PM 已确认）', '', 'CNY', 'CNY'); rateCurrency.querySelector('input').dataset.rateField = 'currency'; rateCurrency.querySelector('input').readOnly = true;
     const rateFx = jobField('CNY 兑 USD 汇率', '', rate.fxToUSD ?? '', '填用户确认汇率'); rateFx.querySelector('input').type = 'number'; rateFx.querySelector('input').step = '0.000001'; rateFx.querySelector('input').min = '0'; rateFx.querySelector('input').dataset.rateField = 'fxToUSD';
     const rateFxDate = jobField('汇率日期 / 来源', '', rate.fxDate || '', '非 USD 必填'); rateFxDate.querySelector('input').dataset.rateField = 'fxDate';
-     const magnetic = jobField('可能附加费 / 票（CNY 情景）', '', rate.magneticInspectionPerShipment ?? '', '填已确认或明确标注的情景费用'); magnetic.querySelector('input').type = 'number'; magnetic.querySelector('input').step = '0.01'; magnetic.querySelector('input').min = '0'; magnetic.querySelector('input').dataset.rateField = 'magneticInspectionPerShipment';
-     const magneticApplicabilityLabel = el('label', 'report-candidate-field'); magneticApplicabilityLabel.append(el('span', '', '附加费适用性'));
-     const magneticApplicability = document.createElement('select'); magneticApplicability.dataset.rateField = 'magneticFeeApplicable';
-     [['unknown', '未知：并列无费用 / 输入情景'], ['yes', '货代确认本票适用'], ['no', '货代确认本票不适用']].forEach(([value, label]) => {
+    const magnetic = jobField('可能磁检费 / 票（固定 CNY 压力情景）', '', 480, '自动比较 ¥0 / ¥480；¥480 非必收费'); magnetic.querySelector('input').type = 'number'; magnetic.querySelector('input').step = '0.01'; magnetic.querySelector('input').min = '0'; magnetic.querySelector('input').dataset.rateField = 'magneticInspectionPerShipment'; magnetic.querySelector('input').readOnly = true;
+    const magneticApplicabilityLabel = el('label', 'report-candidate-field'); magneticApplicabilityLabel.append(el('span', '', '¥480 磁检费适用性'));
+    const magneticApplicability = document.createElement('select'); magneticApplicability.dataset.rateField = 'magneticFeeApplicable';
+    [['unknown', '未知：并列 ¥0 / ¥480'], ['yes', '货代确认本票适用'], ['no', '货代确认本票不适用']].forEach(([value, label]) => {
       const option = document.createElement('option'); option.value = value; option.textContent = label; option.selected = (rate.magneticFeeApplicable || 'unknown') === value; magneticApplicability.append(option);
     });
     magneticApplicabilityLabel.append(magneticApplicability);
     const otherShipment = jobField('其他票级费用（CNY/票）', '', rate.otherPerShipment ?? '', '无则填 0；不混入元/kg'); otherShipment.querySelector('input').type = 'number'; otherShipment.querySelector('input').step = '0.01'; otherShipment.querySelector('input').min = '0'; otherShipment.querySelector('input').dataset.rateField = 'otherPerShipment';
     const rateSource = jobField('费率表总来源定位', '', rate.sourceLocation || '', '截图文件、有效期或报价编号'); rateSource.querySelector('input').dataset.rateField = 'sourceLocation';
     rateGrid.append(rateCurrency, rateFx, rateFxDate, magnetic, magneticApplicabilityLabel, otherShipment, rateSource);
-     freightPanel.append(rateGrid, el('p', 'report-job-warning', '除数未知时并列 5000/6000；若已确认实际除数，保守情景按确认值。只从人工核对、明确可承运、邮区行有效且实际重量档匹配的 CNY/kg 费率候选中取最高值；邮区未知时比较全部合格邮区。附加费与元/kg 分列，适用性未知时只作为标记为情景的输入。'));
+    freightPanel.append(rateGrid, el('p', 'report-job-warning', '除数未知时并列 5000/6000；若已确认实际除数，保守情景按确认值。只从人工核对、明确可承运、邮区行有效且实际重量档匹配的 CNY/kg 费率候选中取最高值；邮区未知时比较全部合格邮区。¥480/票与元/kg 分列，适用性未知时只作为压力情景。'));
     const rateOptionsList = el('div', 'report-shipping-rate-options');
     const rateOptions = Array.isArray(shipping.rateOptions) && shipping.rateOptions.length
       ? shipping.rateOptions
@@ -1043,15 +1043,19 @@
     const pricing = (job.pricingResults || []).find((result) => result.candidateId === item.candidateId)?.result;
     const freightResult = pricing?.airFreight;
     if (freightResult) {
-       const magneticPerUnit = freightResult.magneticInspectionPerUnit === null ? '' : ` · 票级附加费情景 ¥${freightResult.magneticInspectionPerUnit.toFixed(2)}/顶`;
+      const magneticPerUnit = freightResult.magneticInspectionPerUnit === null ? '' : ` · 可能磁检票费情景 ¥${freightResult.magneticInspectionPerUnit.toFixed(2)}/顶`;
       freightPanel.append(el('p', `report-pricing-result ${freightResult.status}`, `保守情景（除数 ${freightResult.volumetricDivisor ?? 5000}）：计费重 ${freightResult.totalBillableKg ?? '-'} kg · 档位 ${freightResult.calculatedShipmentTier || '-'} · ${freightResult.ratePerKg ? `适用费率 ¥${freightResult.ratePerKg}/kg` : '合格费率行待补'} · 运费 ${freightResult.freightPerUnit ?? '未计算'} CNY/顶${magneticPerUnit}${freightResult.freightPerUnitUSD ? `（US$${freightResult.freightPerUnitUSD.toFixed(2)}/顶）` : ''} · ${freightResult.warning}`));
       const sensitivity = pricing.freightSensitivity;
       if (sensitivity) {
-         const rows = sensitivity.scenarios.map((scenario) => `${scenario.volumetricDivisor}/${scenario.magneticInspectionPerShipmentCNY ? `含附加费 ¥${scenario.magneticInspectionPerShipmentCNY}` : '不含附加费'}: ${scenario.result.totalBillableKg}kg，${scenario.result.freightPerUnit === null ? '费率待核' : `¥${scenario.result.freightPerUnit.toFixed(2)}/顶`}`).join('；');
-         freightPanel.append(el('p', 'report-job-warning', `运费敏感性（不代表到岸价）：${rows}`));
+        const rows = sensitivity.scenarios.map((scenario) => `${scenario.volumetricDivisor}/${scenario.magneticInspectionPerShipmentCNY ? '含¥480' : '不含磁检'}: ${scenario.result.totalBillableKg}kg，${scenario.result.freightPerUnit === null ? '费率待核' : `¥${scenario.result.freightPerUnit.toFixed(2)}/顶`}`).join('；');
+        freightPanel.append(el('p', 'report-job-warning', `运费敏感性（不代表到岸价）：${rows}`));
+        if (sensitivity.illustrativeExample) {
+          const example = sensitivity.illustrativeExample;
+          freightPanel.append(el('p', 'report-job-warning', `PRD H0-022 条件示例 @ ¥${example.ratePerKgCNY}/kg（非最高适用费率）：5000除数下基础空运 ¥${example.base?.freightPerUnit ?? '-'} /顶；另假设¥480/票适用时 ¥${example.withMagneticPressure?.freightPerUnit ?? '-'} /顶。`));
+        }
       }
     }
-     else freightPanel.append(el('p', 'report-job-warning', '缺外箱尺寸/毛重/装箱数或经确认的带电渠道时，只显示可用情景，不把产品净重直接套运价。'));
+    else freightPanel.append(el('p', 'report-job-warning', '缺外箱尺寸/毛重/装箱数或经确认的带电渠道时，只显示可用情景，不把头盔净重直接套运价。'));
     row.append(freightPanel);
 
     const researchPanel = el('details', 'report-product-section report-research-section');
@@ -1175,7 +1179,7 @@
       ['title', '商品标题', item.title || '', '', 'text'], ['brand', '品牌', item.brand || '', '', 'text'],
       ['price', '所选变体 PDP 价 USD', item.price ?? '', '仅填 PDP / 截图可核价格', 'number'],
       ['variantLabel', '所选颜色/尺码/配置', item.variantLabel || item.selectedVariant || '', '不可只填父体通用配置', 'text'],
-       ['observedAt', '价格观察时间（保留来源时区）', item.observedAt || '', '如 2026-10-01T20:07:58+08:00', 'text'],
+      ['observedAt', '价格观察时间（保留来源时区）', item.observedAt || '', '如 2026-09-29T20:07:58+08:00', 'text'],
       ['coupon', '可见 Coupon / 促销', item.coupon || '', '未显示可留空', 'text'],
       ['similarityReason', '相似性理由', item.similarityReason || '', '用途/配置/人群/功能', 'text']
     ];
@@ -1230,7 +1234,99 @@
     });
     jobEl.products.append(el('p', 'report-job-warning', '每个可售 SKU/配置单独一行；同一型号可重复添加，分别录入灯/风镜/颜色配置与成本。可通过“指定赛道分析”先建空任务，再人工新增截图型号，无需上传旧样本 PDF。'));
     jobEl.products.append(add);
-   }
+    if (job.taskType === 'track_analysis') {
+      const importer = el('details', 'report-product-section report-trial-import');
+      importer.append(el('summary', '', '导入 2026-09-29 头盔 MVP 试采草稿（非审批数据）'));
+      importer.append(el('p', 'report-job-warning', '导入后 16 个 SKU 配置均为待确认候选；JSON 中的 PDP 截图路径仅作定位。可同时选择同名成本截图和 PDP 截图，匹配到的原图会保存到本任务证据目录。运价、汇率、平台费用不从草稿或示例自动带入。'));
+      const trialJsonWrap = el('label', 'report-candidate-field');
+      trialJsonWrap.append(el('span', '', '试采 JSON 文件'));
+      const trialJson = document.createElement('input'); trialJson.type = 'file'; trialJson.accept = 'application/json,.json'; trialJson.dataset.trialJson = 'true';
+      trialJsonWrap.append(trialJson);
+      const costImagesWrap = el('label', 'report-candidate-field report-screenshot-field');
+      costImagesWrap.append(el('span', '', '供应商成本截图（多选；按 JSON 中图片文件名匹配）'));
+      const costImages = document.createElement('input'); costImages.type = 'file'; costImages.multiple = true; costImages.accept = 'image/png,image/jpeg,image/webp'; costImages.dataset.trialCostImages = 'true';
+      costImagesWrap.append(costImages);
+      const pdpImagesWrap = el('label', 'report-candidate-field report-screenshot-field');
+      pdpImagesWrap.append(el('span', '', 'Amazon PDP 截图（多选；按 JSON 的截图文件名匹配）'));
+      const pdpImages = document.createElement('input'); pdpImages.type = 'file'; pdpImages.multiple = true; pdpImages.accept = 'image/png,image/jpeg,image/webp'; pdpImages.dataset.trialPdpImages = 'true';
+      pdpImagesWrap.append(pdpImages);
+      const trialStatus = el('p', 'report-job-warning'); trialStatus.dataset.trialImportStatus = 'true';
+      const importButton = el('button', 'quiet-button', '导入草稿与匹配截图'); importButton.type = 'button';
+      importButton.addEventListener('click', async () => {
+        const file = trialJson.files?.[0];
+        if (!file) { trialStatus.textContent = '请先选择 JSON 文件。'; trialStatus.classList.add('error'); return; }
+        if (file.size > 2 * 1024 * 1024) { trialStatus.textContent = 'JSON 文件超过 2 MB。'; trialStatus.classList.add('error'); return; }
+        importButton.disabled = true;
+        try {
+          const draft = JSON.parse(await file.text());
+          const imported = window.ReportTrialImport.importMerchantTrialDraft(draft);
+          const costByName = new Map([...costImages.files].map((image) => [image.name.toLowerCase(), image]));
+          const pdpByName = new Map([...pdpImages.files].map((image) => [image.name.toLowerCase(), image]));
+          const existingIds = new Set((job.analysis?.productCandidates || []).map((product) => product.candidateId));
+          let costMatched = 0; let pdpMatched = 0;
+          imported.products.forEach((candidate) => {
+            if (existingIds.has(candidate.candidateId)) return;
+            const sourceName = candidate.sourceScreenshot.split(/[\\/]/).pop().toLowerCase();
+            candidate.costEvidenceFile = costByName.get(sourceName) || null;
+            if (candidate.costEvidenceFile) costMatched += 1;
+            for (const competitor of candidate.competitors) {
+              const screenshotName = competitor.screenshotReference.split(/[\\/]/).pop().toLowerCase();
+              competitor.screenshotFile = pdpByName.get(screenshotName) || null;
+              if (competitor.screenshotFile) pdpMatched += 1;
+            }
+          });
+          const added = imported.products.filter((candidate) => !existingIds.has(candidate.candidateId));
+          job.analysis = { ...job.analysis, productCandidates: [...(job.analysis?.productCandidates || []), ...added] };
+          jobRenderedKey = '';
+          renderJobProducts();
+          const importedStatus = jobEl.products.querySelector('[data-trial-import-status]');
+          if (importedStatus) {
+            importedStatus.classList.remove('error');
+            importedStatus.textContent = `已载入 ${added.length} 个待确认 SKU；匹配成本截图 ${costMatched} 行，PDP 截图 ${pdpMatched} 行；候选竞品 ${imported.competitorCount} 条、评论 ${imported.reviewCount} 条。仍须逐项确认后保存。`;
+          }
+          setJobStatus(`试采草稿已载入（${imported.sampleId}）；未确认成本、竞品价格或利润。`);
+        } catch (error) {
+          trialStatus.textContent = error.message || '无法读取试采 JSON。';
+          trialStatus.classList.add('error');
+        } finally {
+          importButton.disabled = false;
+        }
+      });
+      importer.append(trialJsonWrap, costImagesWrap, pdpImagesWrap, importButton, trialStatus);
+      jobEl.products.append(importer);
+
+      const seed = el('button', 'quiet-button', '添加四款统一价截图候选（未确认）');
+      seed.type = 'button';
+      seed.addEventListener('click', () => {
+        const candidatesToAdd = [
+          { model: 'H0-022', displayName: 'H0-022 · 截图供应商价候选', amount: 16, variant: '成人基础公路骑行款', fileName: 'H0-022.jpg' },
+          { model: 'H0-196', displayName: 'H0-196 · 截图供应商价候选', amount: 24, variant: '统一配置（按截图待确认）', fileName: 'H0-196.jpg' },
+          { model: 'YB-11', displayName: 'YB-11 · 截图供应商价候选', amount: 50, variant: '统一配置（按截图待确认）', fileName: 'YB-11.jpg' },
+          { model: 'YB-19', displayName: 'YB-19 · 截图供应商价候选', amount: 38, variant: '带 LED 灯', fileName: 'YB-19.jpg', batteryType: 'unknown' }
+        ];
+        const existing = new Set([...list.querySelectorAll('[data-candidate-field="model"]')].map((input) => input.value.trim()));
+        candidatesToAdd.forEach((candidate) => {
+          if (existing.has(candidate.model)) return;
+          const index = list.childElementCount;
+          const costCandidate = {
+            amount: candidate.amount, currency: 'CNY', currencyStatus: 'user_transcribed_candidate',
+            unit: '', incoterm: '', variant: candidate.variant, sourceType: 'user_screenshot_candidate',
+            evidenceText: `${candidate.amount}元（PRD截图转录候选，待上传原图核验）`, userConfirmed: false
+          };
+          const row = candidateRow({
+            candidateId: `merchant-${candidate.model}`, displayName: candidate.displayName, model: candidate.model,
+            confidence: 0, missingFields: ['cost unit', 'price terms', 'exchange rate', 'manual confirmation'],
+            fields: { purchaseCostCandidate: costCandidate },
+            cost: { amount: candidate.amount, currency: 'CNY', unit: '', incoterm: '', variant: candidate.variant, fxToUSD: '', fxDate: '', confirmed: false, sourceType: 'user_screenshot_candidate', sourceLocation: `E:\\外贸\\运动头盔调研\\${candidate.fileName}` },
+            modelConfirmed: false, fees: {}, batteryType: candidate.batteryType || 'none', batteryTypeConfirmed: false
+          }, index);
+          list.append(row);
+        });
+        const empty = list.querySelector('.empty-inline'); if (empty) empty.remove();
+      });
+      jobEl.products.append(seed);
+    }
+  }
 
   function renderJobBrief() {
     jobEl.brief.replaceChildren();
@@ -2002,7 +2098,7 @@
   async function resumeJob() {
     const entry = new URLSearchParams(window.location.search);
     if (entry.get('entry') === 'track') {
-      // A new cross-category project must not silently resume the previous task.
+      // A new cross-category project must not silently resume the previous helmet task.
       renderJob();
       selectJobEntry('track');
       if (entry.has('category')) jobEl.trackCategory.value = entry.get('category').slice(0, 100);
