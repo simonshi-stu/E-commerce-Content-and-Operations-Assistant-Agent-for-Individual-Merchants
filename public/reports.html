@@ -34,9 +34,11 @@
           </span>
         </a>
         <nav class="topbar-nav" aria-label="Sections">
-          <a href="/" class="nav-link" data-i18n="nav.content">内容生成</a>
+          <a href="/" class="nav-link">工作台</a>
+          <a href="/content.html" class="nav-link" data-i18n="nav.content">内容生成</a>
           <a href="/intel.html" class="nav-link" data-i18n="nav.intel">选品与情报</a>
           <a href="/reports.html" class="nav-link is-active" data-i18n="nav.reports">报告中心</a>
+          <a href="/video.html" class="nav-link">视频工作台</a>
         </nav>
         <div class="topbar-meta">
           <span id="health-chip" class="chip chip-muted">
@@ -101,7 +103,7 @@
             </div>
             <div class="field-grid report-track-grid">
               <label><span data-report="fieldQuestions">研究问题（每行一条）</span><textarea id="report-track-questions" rows="3" placeholder="该品类的价格带、差评集中点、进入门槛"></textarea></label>
-              <label><span data-report="fieldGroups">市场分组（每行：分组名 | 关键词1,关键词2）</span><textarea id="report-track-groups" rows="3" placeholder="成人通勤 | commuter helmet,bike helmet"></textarea></label>
+              <label><span data-report="fieldGroups">市场分组（每行：分组名 | 关键词1,关键词2）</span><textarea id="report-track-groups" rows="3" placeholder="日常通勤 | travel mug,coffee tumbler"></textarea></label>
             </div>
             <div class="button-row">
               <button id="report-track-create" class="primary-button" type="button"><span class="button-label" data-report="trackCreate">创建赛道 / 手工产品任务</span><span class="button-sub">TRACK ANALYSIS</span></button>
@@ -177,6 +179,8 @@
         </aside>
       </section>
 
+      <details class="wb-legacy-archive">
+        <summary>历史头盔研究档案 · 2026-09-22（不作为新项目的默认数据）</summary>
       <section class="report-layout">
         <section class="panel report-control-panel" aria-labelledby="report-control-title">
           <div class="panel-head">
@@ -295,6 +299,7 @@
         </details>
       </section>
 
+      </details>
       <section class="report-workflow-strip" aria-label="Workflow">
         <div class="workflow-step"><span>01</span><strong data-report="stepCatalog">目录识别</strong><small data-report="stepCatalogHint">型号 + 品类去重，变体归并</small></div>
         <div class="workflow-connector"></div>

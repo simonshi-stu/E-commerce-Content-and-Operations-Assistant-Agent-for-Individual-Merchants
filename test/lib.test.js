@@ -624,7 +624,7 @@ describe('price csv import', () => {
 });
 
 describe('frontend scripts', () => {
-  for (const file of ['app.js', 'intel.js', 'i18n.js', 'reports.js']) {
+  for (const file of ['app.js', 'intel.js', 'i18n.js', 'reports.js', 'workbench.js', 'video-tools.js', 'video.js']) {
     it(`${file} parses without syntax errors`, () => {
       execFileSync(process.execPath, ['--check', path.join(__dirname, '..', 'public', file)]);
     });
@@ -869,7 +869,7 @@ describe('Amazon public research', () => {
     image: ['https://m.media-amazon.com/images/I/demo.jpg'],
     offers: { price: '39.99' },
     aggregateRating: { ratingValue: '4.6', reviewCount: '1245' }
-  })}</script><span id="productTitle">Demo commuter helmet</span><span id="acrCustomerReviewText">1,245 ratings</span><span id="acrPopover" title="4.6 out of 5 stars"></span><div id="feature-bullets"><ul><li><span class="a-list-item">Integrated rear LED light and adjustable fit dial.</span></li></ul></div></div><table><tr><th>Product Dimensions</th><td>12 x 9 x 7 inches</td></tr><tr><th>Item Weight</th><td>10 ounces</td></tr></table><div>Best Sellers Rank: #123 in Bike Helmets #45 in Adult Bike Helmets</div><h3>Customers say</h3><span>Customers appreciate the comfortable fit and bright rear light, but durability receives mixed reviews.</span><button aria-label="Positive aspect, fit, 942 mentions"></button><div data-hook="review"><i data-hook="review-star-rating"><span>2.0 out of 5 stars</span></i><a data-hook="review-title"><span>Hard to adjust</span></a><span data-hook="review-body"><span>Too small around the head and the strap is hard to adjust.</span></span></div><span data-hook="question-answer"><span>Does this fit a 58 cm head?</span></span>10K+ bought in past month 57-62 cm`;
+  })}</script><span id="productTitle">Demo commuter helmet</span><span id="acrCustomerReviewText">1,245 ratings</span><span id="acrPopover" title="4.6 out of 5 stars"></span><div id="histogramTable"><table><tr><td>5 star</td><td>70%</td></tr><tr><td>4 star</td><td>18%</td></tr><tr><td>3 star</td><td>5%</td></tr><tr><td>2 star</td><td>3%</td></tr><tr><td>1 star</td><td>4%</td></tr></table></div><div id="feature-bullets"><ul><li><span class="a-list-item">Integrated rear LED light and adjustable fit dial.</span></li></ul></div></div><table><tr><th>Product Dimensions</th><td>12 x 9 x 7 inches</td></tr><tr><th>Item Weight</th><td>10 ounces</td></tr></table><div>Best Sellers Rank: #123 in Bike Helmets #45 in Adult Bike Helmets</div><h3>Customers say</h3><span>Customers appreciate the comfortable fit and bright rear light, but durability receives mixed reviews.</span><button aria-label="Positive aspect, fit, 942 mentions"></button><div data-hook="review"><i data-hook="review-star-rating"><span>2.0 out of 5 stars</span></i><a data-hook="review-title"><span>Hard to adjust</span></a><span data-hook="review-body"><span>Too small around the head and the strap is hard to adjust.</span></span></div><span data-hook="question-answer"><span>Does this fit a 58 cm head?</span></span>10K+ bought in past month 57-62 cm`;
   const searchHtml = '<html><body><div data-component-type="s-search-result" data-asin="B000123456"><h2><span class="a-size-medium">Demo commuter helmet</span></h2><span class="a-price-whole">39</span><span class="a-price-fraction">99</span><span class="a-icon-alt">4.6 out of 5 stars</span><span class="a-size-base s-underline-text">1,245</span><img class="s-image" src="https://m.media-amazon.com/images/I/demo.jpg"/><a href="/dp/B000123456">open</a></div></body></html>';
 
   it('parses public product fields, images, sizes, and review issue signals', () => {
@@ -884,6 +884,7 @@ describe('Amazon public research', () => {
     assert.ok(result.sizes.includes('57-62 cm'));
     assert.equal(result.productDimensions, '12 x 9 x 7 inches');
     assert.equal(result.itemWeight, '10 ounces');
+    assert.equal(result.ratingDistribution.percentages[1], 4);
     assert.ok(result.featureBullets.some((item) => item.includes('rear LED light')));
     assert.ok(result.bestSellerRanks.some((item) => item.rank === 123));
     assert.match(result.customerSummary, /comfortable fit/);

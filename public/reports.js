@@ -2096,6 +2096,15 @@
   }
 
   async function resumeJob() {
+    const entry = new URLSearchParams(window.location.search);
+    if (entry.get('entry') === 'track') {
+      // A new cross-category project must not silently resume the previous helmet task.
+      renderJob();
+      selectJobEntry('track');
+      if (entry.has('category')) jobEl.trackCategory.value = entry.get('category').slice(0, 100);
+      if (entry.has('market')) jobEl.trackCountry.value = entry.get('market').slice(0, 100);
+      return;
+    }
     let stored = '';
     try { stored = sessionStorage.getItem(JOB_STORAGE_KEY) || ''; } catch { /* optional */ }
     if (!stored) {

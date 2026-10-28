@@ -534,7 +534,12 @@ describe('E-commerce demo server', () => {
       assert.equal(generate.status, 200);
     });
 
-    it('serves the static demo page', async () => {      const result = await request(`${baseUrl}/`);
+    it('serves the sourcing workbench and preserves the content editor', async () => {
+      const home = await request(`${baseUrl}/`);
+      assert.equal(home.status, 200);
+      assert.match(home.text, /选品与创意工作台/);
+      assert.match(home.text, /\/video.html/);
+      const result = await request(`${baseUrl}/content.html`);
       assert.equal(result.status, 200);
       assert.match(result.headers.get('content-type') || '', /text\/html/);
       assert.match(result.text, /电商内容助手/);
@@ -545,6 +550,57 @@ describe('E-commerce demo server', () => {
       assert.match(result.text, /id="download-pack"/);
       assert.match(result.text, /id="dropzone"/);
       assert.match(result.text, /value="Amazon"/);
+    });
+
+    it('serves honest video capabilities and rejects incomplete video plans', async () => {
+      const page = await request(`${baseUrl}/video.html`);
+      assert.equal(page.status, 200);
+      assert.match(page.text, /data-route="replace"/);
+      assert.match(page.text, /data-route="remix"/);
+      const result = await request(`${baseUrl}/api/video/capabilities`);
+      assert.equal(result.status, 200);
+      const caps = JSON.parse(result.text).data;
+      assert.equal(caps.mode, 'handoff_only');
+      assert.equal(caps.renderConnected, false);
+      const rejected = await postJson(baseUrl, '/api/video/plan', { route: 'replace' });
+      assert.equal(rejected.status, 400);
+      const input = {
+        route: 'remix', product: 'Test item', category: 'Generic', market: 'Test',
+        duration: 5, aspectRatio: '9:16', facts: 'User draft', rightsConfirmed: true,
+        assets: [{ name: 'item.png', type: 'image/png', role: 'product', size: 120 }, { name: 'reference.mp4', type: 'video/mp4', role: 'reference', size: 150 }],
+        referenceNotes: { rhythm: 'Manual note' },
+        shots: [{ start: 0, end: 5, action: 'Show own product', assetId: 'asset-1' }]
+      };
+      const accepted = await postJson(baseUrl, '/api/video/plan', input);
+      assert.equal(accepted.status, 200);
+      const plan = JSON.parse(accepted.text).data;
+      assert.equal(plan.output.status, 'not_generated');
+      assert.equal(plan.permissions.externalUpload, false);
+      assert.match(plan.agentBrief, /\.svml/);
+    });
+
+    it('serves the two primary workbench modes and ranks user-supplied viral references', async () => {
+      const sourcing = await request(`${baseUrl}/sourcing.html`);
+      assert.equal(sourcing.status, 200);
+      assert.match(sourcing.text, /公开详情页研究/);
+      assert.match(sourcing.text, /sourcing-run/);
+      const ranked = await postJson(baseUrl, '/api/video/rank-candidates', { candidates: [
+        { platform: 'douyin', url: 'https://www.douyin.com/video/1', plays: '1.2万', title: 'A' },
+        { platform: 'douyin', url: 'https://www.douyin.com/video/2', plays: '2万', title: 'B' }
+      ] });
+      assert.equal(ranked.status, 200);
+      assert.equal(ranked.json.data.candidates[0].title, 'B');
+      assert.equal(ranked.json.data.completeSearch, false);
+      const brief = await postJson(baseUrl, '/api/video/analysis-brief', { candidate: ranked.json.data.candidates[0], observations: { rhythm: '快切' } });
+      assert.equal(brief.status, 200);
+      assert.equal(brief.json.data.status, 'draft_requires_review');
+      assert.equal(brief.json.data.rights.publish, false);
+    });
+
+    it('does not guess a Chinese category into an Amazon query', async () => {
+      const result = await postJson(baseUrl, '/api/sourcing/insights', { category: '骑行头盔', userNeed: '夜间通勤' });
+      assert.equal(result.status, 400);
+      assert.equal(result.json.error.code, 'english_keywords_required');
     });
 
     it('serves the frontend script with the draft tooling', async () => {

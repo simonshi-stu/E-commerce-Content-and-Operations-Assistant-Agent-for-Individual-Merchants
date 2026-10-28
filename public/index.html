@@ -1,253 +1,53 @@
 <!doctype html>
 <html lang="zh-CN" data-theme="dark">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="本地运行的跨境电商内容工作台：结构化草稿、图片理解、风险扫描与合规提醒。">
-    <meta name="color-scheme" content="dark light">
-    <title>电商内容助手 · Cross-Border Content Studio</title>
-    <link rel="stylesheet" href="/styles.css">
-    <link rel="stylesheet" href="/tasks.css">
-  </head>
-  <body>
-    <div class="bg-grid" aria-hidden="true"></div>
-    <div class="bg-glow glow-a" aria-hidden="true"></div>
-    <div class="bg-glow glow-b" aria-hidden="true"></div>
-
-    <header class="topbar">
-      <div class="topbar-inner">
-        <a class="brand" href="/">
-          <span class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 32 32" width="26" height="26" fill="none">
-              <path d="M16 2.8 27.4 9.4v13.2L16 29.2 4.6 22.6V9.4L16 2.8Z" stroke="url(#bg1)" stroke-width="1.8"/>
-              <circle cx="16" cy="16" r="4.6" stroke="url(#bg1)" stroke-width="1.8"/>
-              <path d="M16 11.4V6.2M16 25.8v-5.2M11.6 16H6.4M25.6 16h-5.2" stroke="url(#bg1)" stroke-width="1.6" stroke-linecap="round"/>
-              <defs>
-                <linearGradient id="bg1" x1="4" y1="3" x2="28" y2="29" gradientUnits="userSpaceOnUse">
-                  <stop stop-color="#818CF8"/><stop offset="1" stop-color="#22D3EE"/>
-                </linearGradient>
-              </defs>
-            </svg>
-          </span>
-          <span class="brand-text">
-            <strong data-i18n="brand.name">电商内容助手</strong>
-            <small data-i18n="brand.tag">CROSS-BORDER CONTENT STUDIO</small>
-          </span>
-        </a>
-        <nav class="topbar-nav" aria-label="Sections">
-          <a href="/" class="nav-link is-active" data-i18n="nav.content">内容生成</a>
-          <a href="/intel.html" class="nav-link" data-i18n="nav.intel">选品与情报</a>
-          <a href="/reports.html" class="nav-link" data-i18n="nav.reports">报告中心</a>
-          <a href="/tasks.html" class="nav-link">任务中心</a>
-        </nav>
-        <div class="topbar-meta">
-          <span id="health-chip" class="chip chip-muted" data-i18n-title="health.checking">
-            <span class="chip-dot" aria-hidden="true"></span>
-            <span id="health-text" data-i18n="health.checking">检测中…</span>
-          </span>
-          <span class="chip chip-muted chip-local" data-i18n="privacy.local">127.0.0.1 · 数据不出本机</span>
-          <div class="segmented" id="theme-switch" role="group" data-i18n-aria-label="switch.theme">
-            <button type="button" data-theme-mode="dark" data-i18n="theme.dark">暗色</button>
-            <button type="button" data-theme-mode="light" data-i18n="theme.light">明亮</button>
-            <button type="button" data-theme-mode="auto" data-i18n="theme.auto">跟随系统</button>
-          </div>
-          <div class="segmented" id="language-switch" role="group" data-i18n-aria-label="switch.language">
-            <button type="button" data-locale="zh">中文</button>
-            <button type="button" data-locale="en">EN</button>
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <main class="page-shell">
-      <section class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow" data-i18n="hero.eyebrow">LOCAL FIRST · REVIEW BEFORE PUBLISH</p>
-          <h1><span data-i18n="hero.title1">一次录入商品事实，</span><span class="grad" data-i18n="hero.title2">生成多平台可复核草稿</span></h1>
-          <p class="hero-sub" data-i18n="hero.sub">面向个体商家与跨境卖家的内容工作台：结构化字段、图片理解、风险用语扫描、数字事实核查与合规提醒，全部在你的机器上运行。</p>
-        </div>
-        <ol class="stepper" id="stepper">
-          <li class="step is-active" data-step="1">
-            <span class="step-num">01</span>
-            <span class="step-label"><span data-i18n="step.1.label">商品资料</span><small data-i18n="step.1.sub">Facts</small></span>
-          </li>
-          <li class="step" data-step="2">
-            <span class="step-num">02</span>
-            <span class="step-label"><span data-i18n="step.2.label">生成草稿</span><small data-i18n="step.2.sub">Generate</small></span>
-          </li>
-          <li class="step" data-step="3">
-            <span class="step-num">03</span>
-            <span class="step-label"><span data-i18n="step.3.label">复核导出</span><small data-i18n="step.3.sub">Review</small></span>
-          </li>
-        </ol>
-      </section>
-
-      <div class="workspace">
-        <section class="panel panel-form" aria-labelledby="form-title">
-          <div class="panel-head">
-            <h2 id="form-title"><span class="panel-index">01</span><span data-i18n="form.title">商品资料</span><small data-i18n="form.sub">PRODUCT FACTS</small></h2>
-            <span class="panel-hint" data-i18n="form.hint">只填写可核实的真实信息</span>
-          </div>
-
-          <form id="generator-form" novalidate>
-            <div class="field-grid">
-              <label>
-                <span data-i18n="field.productName">商品名称</span> <span class="required">*</span>
-                <input id="product-name" name="productName" maxlength="200" required data-i18n-placeholder="placeholder.productName">
-              </label>
-              <label>
-                <span data-i18n="field.category">类目</span>
-                <input id="category" name="category" maxlength="80" data-i18n-placeholder="placeholder.category">
-              </label>
-              <label>
-                <span data-i18n="field.brand">品牌</span>
-                <input id="brand" name="brand" maxlength="80" data-i18n-placeholder="placeholder.brand">
-              </label>
-              <label>
-                <span data-i18n="field.targetAudience">目标人群</span>
-                <input id="target-audience" name="targetAudience" maxlength="200" data-i18n-placeholder="placeholder.targetAudience">
-              </label>
-              <label>
-                <span data-i18n="field.priceInfo">价格信息</span>
-                <input id="price-info" name="priceInfo" maxlength="120" data-i18n-placeholder="placeholder.priceInfo">
-              </label>
-              <label>
-                <span data-i18n="field.promotionInfo">促销信息</span>
-                <input id="promotion-info" name="promotionInfo" maxlength="200" data-i18n-placeholder="placeholder.promotionInfo">
-              </label>
-              <label>
-                <span data-i18n="field.afterSales">售后服务</span>
-                <input id="after-sales" name="afterSales" maxlength="200" data-i18n-placeholder="placeholder.afterSales">
-              </label>
-              <label>
-                <span data-i18n="field.tone">语气风格</span>
-                <input id="tone" name="tone" maxlength="120" value="清晰、友好、可信">
-              </label>
-            </div>
-
-            <label>
-              <span data-i18n="field.productDescription">商品描述</span> <span class="required">*</span>
-              <textarea id="product-description" name="productDescription" maxlength="4000" required data-i18n-placeholder="placeholder.productDescription"></textarea>
-            </label>
-
-            <div class="field-grid">
-              <label>
-                <span data-i18n="field.sellingPoints">核心卖点</span> <small class="field-note" data-i18n="field.sellingPoints.note">每行一条，最多 8 条</small>
-                <textarea id="selling-points" name="sellingPoints" class="compact" data-i18n-placeholder="placeholder.sellingPoints"></textarea>
-              </label>
-              <label>
-                <span data-i18n="field.specifications">规格参数</span> <small class="field-note" data-i18n="field.specifications.note">每行一条，格式“参数名: 参数值”</small>
-                <textarea id="specifications" name="specifications" class="compact" data-i18n-placeholder="placeholder.specifications"></textarea>
-              </label>
-            </div>
-
-            <fieldset>
-              <legend><span data-i18n="platforms.title">目标平台</span> <small class="field-note" data-i18n="platforms.note">至少选择一个</small></legend>
-              <div class="platform-grid">
-                <label class="platform-card">
-                  <input type="checkbox" name="platform" value="Xiaohongshu">
-                  <span class="platform-dot dot-xiaohongshu" aria-hidden="true"></span>
-                  <span class="platform-name"><span data-i18n="platform.Xiaohongshu">小红书</span><small>Xiaohongshu</small></span>
-                </label>
-                <label class="platform-card">
-                  <input type="checkbox" name="platform" value="Douyin">
-                  <span class="platform-dot dot-douyin" aria-hidden="true"></span>
-                  <span class="platform-name"><span data-i18n="platform.Douyin">抖音</span><small>Douyin</small></span>
-                </label>
-                <label class="platform-card">
-                  <input type="checkbox" name="platform" value="Tmall">
-                  <span class="platform-dot dot-tmall" aria-hidden="true"></span>
-                  <span class="platform-name"><span data-i18n="platform.Tmall">天猫</span><small>Tmall</small></span>
-                </label>
-                <label class="platform-card">
-                  <input type="checkbox" name="platform" value="Pinduoduo">
-                  <span class="platform-dot dot-pinduoduo" aria-hidden="true"></span>
-                  <span class="platform-name"><span data-i18n="platform.Pinduoduo">拼多多</span><small>Pinduoduo</small></span>
-                </label>
-                <label class="platform-card">
-                  <input type="checkbox" name="platform" value="Amazon">
-                  <span class="platform-dot dot-amazon" aria-hidden="true"></span>
-                  <span class="platform-name"><span data-i18n="platform.Amazon">亚马逊</span><small>Amazon</small></span>
-                </label>
-              </div>
-            </fieldset>
-
-            <fieldset>
-              <legend><span data-i18n="images.title">商品图片</span> <small class="field-note" data-i18n="images.note">可选 · 最多 4 张 · 单张不超过 2MB</small></legend>
-              <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Upload product images">
-                <span class="dropzone-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="4" width="18" height="16" rx="3"/>
-                    <circle cx="9" cy="10" r="1.6"/>
-                    <path d="m4.5 17 4.8-4.4 3.4 3 2.6-2.3 4.2 3.7"/>
-                  </svg>
-                </span>
-                <p class="dropzone-title"><strong data-i18n="dropzone.click">点击选择</strong> <span data-i18n="dropzone.drag">或拖拽图片到此处</span></p>
-                <p class="dropzone-hint" data-i18n="dropzone.hint">PNG / JPEG / WebP，仅随本次请求发送，不写入磁盘或本地历史</p>
-                <input id="image-input" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden>
-              </div>
-              <div id="image-preview" class="image-grid"></div>
-            </fieldset>
-
-            <div class="command-bar">
-              <p id="status" class="status" aria-live="polite"></p>
-              <button id="submit-button" class="primary-button" type="submit">
-                <span class="button-label" data-i18n="submit.label">生成草稿</span>
-                <span class="button-sub" data-i18n="submit.sub">GENERATE</span>
-              </button>
-            </div>
-          </form>
-        </section>
-
-        <aside id="review-section" class="panel panel-review" aria-labelledby="review-title">
-          <div class="panel-head">
-            <h2 id="review-title"><span class="panel-index">02</span><span data-i18n="review.title">复核与合规</span><small data-i18n="review.sub">REVIEW</small></h2>
-          </div>
-          <p class="helper-text" data-i18n="review.helper">由本地规则自动生成，仅作辅助，不能替代人工审核与平台规则核对。</p>
-          <div id="review-empty" class="empty-state">
-            <p data-i18n="review.emptyTitle">生成草稿后，这里会汇总四类结果：</p>
-            <ul class="empty-list">
-              <li data-i18n="review.empty.1">缺失信息提示</li>
-              <li data-i18n="review.empty.2">风险用语扫描</li>
-              <li data-i18n="review.empty.3">数字事实核查</li>
-              <li data-i18n="review.empty.4">平台合规提醒</li>
-            </ul>
-          </div>
-          <div id="review-content"></div>
-        </aside>
-
-        <section id="result-section" class="panel panel-results hidden" aria-labelledby="results-title">
-          <div class="panel-head">
-            <h2 id="results-title"><span class="panel-index">03</span><span data-i18n="results.title">可编辑草稿</span><small data-i18n="results.sub">DRAFTS</small></h2>
-            <div class="button-row">
-              <button id="copy-all" class="quiet-button" type="button" data-i18n="action.copyAll">复制全部</button>
-              <button id="save-edits" class="quiet-button" type="button" data-i18n="action.saveChanges">保存修改</button>
-              <button id="download-markdown" class="quiet-button" type="button" data-i18n="action.exportMd">导出 Markdown</button>
-              <button id="download-json" class="quiet-button" type="button" data-i18n="action.exportJson">导出 JSON</button>
-              <button id="download-pack" class="quiet-button" type="button" data-i18n="action.exportPack">导出发布包</button>
-            </div>
-          </div>
-          <p class="helper-text" data-i18n="results.helper">修改后点击“保存修改”会更新本地历史；导出文件会保存到你的下载目录。</p>
-          <div id="draft-summary" class="draft-summary"></div>
-          <div id="results"></div>
-        </section>
-
-        <section id="history-section" class="panel panel-history hidden" aria-labelledby="history-title">
-          <div class="panel-head">
-            <h2 id="history-title"><span class="panel-index">04</span><span data-i18n="history.title">本地历史</span><small data-i18n="history.sub">HISTORY</small></h2>
-            <button id="clear-history" class="quiet-button" type="button" data-i18n="action.clearHistory">清空历史</button>
-          </div>
-          <p class="helper-text" data-i18n="history.helper">保存在当前浏览器的 localStorage 中，最多 10 条；图片不会保存。</p>
-          <div id="history-list" class="history-list"></div>
-        </section>
-      </div>
-
-      <footer class="footer notice">
-        <strong>Notice:</strong> <span data-i18n="footer.boundary">使用边界：本工具不会自动发布内容、修改价格或操作任何平台账号。生成内容仅为草稿，请人工核实事实、价格、资质与平台规则后再使用。</span>
-      </footer>
-    </main>
-
-    <script src="/i18n.js" defer></script>
-    <script src="/app.js" defer></script>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="跨品类选品与创意工作台：从商品事实、市场证据到渠道、图片和视频生产。">
+  <title>选品与创意工作台</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/workbench.css">
+</head>
+<body class="wb-body">
+  <header class="wb-topbar">
+    <a class="wb-brand" href="/"><span class="wb-mark">S</span><span>选品与创意工作台<small>SOURCING × CREATIVE</small></span></a>
+    <nav class="wb-nav" aria-label="主导航">
+      <a href="/" aria-current="page">工作台</a><a href="/sourcing.html">选品洞察</a><a href="/video.html">爆款复刻</a><a href="/content.html">图文草稿</a><a href="/tasks.html">任务中心</a>
+    </nav>
+    <button class="quiet-button small" id="wb-theme" type="button">切换主题</button>
+  </header>
+  <main class="wb-main">
+    <section class="wb-hero">
+      <div><p class="eyebrow">YOUR NEXT PRODUCT, FROM EVIDENCE TO STORY</p><h1>从一个商品机会，<br><span class="grad">走到一套可交付内容。</span></h1><p class="hero-sub">不限头盔，不限品类。把研究、选品、渠道线索与创意制作串在同一个项目里。</p></div>
+      <a href="/video.html" class="wb-feature-link"><span class="wb-kicker">NEW · HYPIT WORKFLOW</span><strong>好视频不只复用文案，<br>还复用叙事与节奏。</strong><span>商品替换 / 人物与素材重组 <b>↗</b></span></a>
+    </section>
+    <ol class="wb-pipeline" aria-label="工作流程">
+      <li><b>01</b> 商品资料</li><li><b>02</b> 市场研究</li><li><b>03</b> 选品决策</li><li><b>04</b> 渠道适配</li><li><b>05</b> 图文 / 视频</li><li><b>06</b> 审核交付</li>
+    </ol>
+    <section class="wb-primary-grid" aria-label="两条主工作流">
+      <a class="wb-primary wb-primary-sourcing" href="/sourcing.html"><span class="wb-kicker">01 / SOURCING INTELLIGENCE</span><h2>选品洞察</h2><p>输入用户需求和产品大类，收集公开商品详情页，比较价格、性能声明、重量、评论和差异化配置。</p><strong>进入选品工作区 ↗</strong></a>
+      <a class="wb-primary wb-primary-video" href="/video.html"><span class="wb-kicker">02 / VIRAL REPLICA</span><h2>爆款复刻</h2><p>从已授权的参考视频和自有素材出发，拆解镜头、节奏、调性和文案，生成可审核的视频制作交接包。</p><strong>进入复刻工作区 ↗</strong></a>
+    </section>
+    <section class="wb-project-section" aria-labelledby="projects-title">
+      <div class="wb-heading"><div><p class="wb-kicker">PROJECTS</p><h2 id="projects-title">你的选品项目</h2></div><span class="wb-muted">项目简报保存在当前浏览器，不保存成本或素材文件</span></div>
+      <form id="wb-project-form" class="wb-create">
+        <label>项目名称<input id="wb-project-name" maxlength="120" placeholder="如：秋冬通勤用品" required></label>
+        <label>品类<input id="wb-project-category" maxlength="80" placeholder="如：杯具 / 汽车配件 / 智能硬件" required></label>
+        <label>目标市场<input id="wb-project-market" maxlength="80" placeholder="如：美国 / 中国" required></label>
+        <button class="primary-button" type="submit">新建本地项目 <span>＋</span></button>
+      </form>
+      <p id="wb-project-status" class="status" role="status"></p>
+      <div id="wb-project-list" class="wb-project-grid"></div>
+    </section>
+    <section class="wb-module-grid" aria-label="工作模块">
+      <a class="wb-module" href="/reports.html?entry=track"><span class="wb-kicker">SUPPORT / REPORTS</span><h2>产品资料与报告</h2><p>需要 PDF、成本确认、定价情景和 Excel 审核交付时使用；无样本选品优先走上方选品洞察。</p><span>打开报告工作区 ↗</span></a>
+      <a class="wb-module" href="/intel.html"><span class="wb-kicker">SUPPORT / DECISION</span><h2>成本与竞品计算</h2><p>对已确认的产品和证据做候选对比、价格带与费用情景。评分是辅助判断，不是销量真值。</p><span>打开计算工具 ↗</span></a>
+      <a class="wb-module" href="/content.html"><span class="wb-kicker">SUPPORT / CONTENT</span><h2>图文与详情页草稿</h2><p>沿用已确认商品事实，编写多平台文案并检查风险词和数字声明。</p><span>进入内容工作区 ↗</span></a>
+      <a class="wb-module" href="/tasks.html"><span class="wb-kicker">SUPPORT / TASKS</span><h2>受控任务中心</h2><p>查看本地任务、工具权限和审核边界；未配置时不会自动执行外部商业操作。</p><span>查看任务中心 ↗</span></a>
+    </section>
+    <aside class="wb-note"><strong>渠道与交付边界</strong><p>渠道商是公司，不是零售 ASIN。渠道名单需有官网/名录证据和联系方式出处；联络、群发与发布单独授权。此入口尚未提供自动发现或触达。</p><p>价格与市场数据仍以来源和观察时间为准；头盔历史报告保留在报告中心，不作为新项目的默认结论。</p></aside>
+  </main>
+  <script src="/workbench.js" defer></script>
+</body>
 </html>

@@ -23,6 +23,10 @@
   --radius: 18px;
 }
 
+.wb-legacy-archive { margin-top: 30px; border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+.wb-legacy-archive > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.wb-legacy-archive[open] > summary { margin-bottom: 22px; }
+
 [data-theme="light"] {
   color-scheme: light;
   --bg: #f2f5fb;

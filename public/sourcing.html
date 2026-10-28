@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="基于用户需求和产品大类，收集公开商品详情页并比较价格、性能、重量、评论与产品特征。">
+  <title>选品洞察 · 公开详情页研究</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/workbench.css">
+  <link rel="stylesheet" href="/sourcing.css">
+</head>
+<body class="wb-body">
+  <header class="wb-topbar">
+    <a class="wb-brand" href="/"><span class="wb-mark">S</span><span>选品与创意工作台<small>SOURCING × CREATIVE</small></span></a>
+    <nav class="wb-nav" aria-label="主导航">
+      <a href="/">工作台</a><a href="/sourcing.html" aria-current="page">选品洞察</a><a href="/video.html">爆款复刻</a><a href="/content.html">图文草稿</a><a href="/tasks.html">任务中心</a>
+    </nav>
+    <button class="quiet-button small" id="sourcing-theme" type="button">切换主题</button>
+  </header>
+  <main class="wb-main sourcing-main">
+    <section class="sourcing-intro">
+      <div><p class="eyebrow">PUBLIC PDP → COMPARE → UNDERSTAND</p><h1>不上传样本，<span class="grad">先看清一个品类。</span></h1><p class="hero-sub">从用户需求和产品大类出发，读取公开商品详情页，整理价格、规格/性能页面声明、重量、评论数量、好评、差评和差异化配置。</p></div>
+      <div class="sourcing-boundary"><strong>研究边界</strong><span>只访问 Amazon.com 公开前台；不登录、不访问卖家后台，不把公开页面直接变成利润或销量结论。</span></div>
+    </section>
+    <section class="sourcing-form-box" aria-labelledby="sourcing-form-title">
+      <div class="wb-heading"><div><p class="wb-kicker">01 / RESEARCH BRIEF</p><h2 id="sourcing-form-title">定义需求与检索范围</h2></div><span class="wb-muted">英文检索词决定能否找到目标页面</span></div>
+      <div class="sourcing-form-grid">
+        <label>产品大类<input id="sourcing-category" maxlength="160" placeholder="如：骑行头盔 / bike helmet" required></label>
+        <label>用户需求 / 使用场景<input id="sourcing-need" maxlength="500" placeholder="如：通勤、夜间可见性、需要护目镜"></label>
+        <label>目标市场<input id="sourcing-market" maxlength="120" value="Amazon.com / 美国"></label>
+        <label>关注特征<input id="sourcing-features" maxlength="800" placeholder="如：头灯, 护目镜, MIPS, 可拆洗内衬"></label>
+      </div>
+      <label class="sourcing-wide-field">英文 Amazon 检索词（每行一条）<textarea id="sourcing-queries" rows="3" maxlength="1600" placeholder="adult commuter bike helmet with light
+bike helmet with visor
+注意：不填写时，系统只会对英文产品大类生成基础检索词；不会把中文自动猜译成英文。"></textarea></label>
+      <div class="sourcing-options">
+        <label>商品详情页数量<select id="sourcing-pages"><option value="6">6</option><option value="8" selected>8</option><option value="12">12</option><option value="20">20</option></select></label>
+        <label class="video-check"><input id="sourcing-reviews" type="checkbox"><span>尝试读取公开评论页<br><small>登录门槛或不可访问时记录缺口，不绕过限制。</small></span></label>
+        <button class="primary-button" id="sourcing-run" type="button">开始公开详情页研究 <span>↗</span></button>
+      </div>
+      <p id="sourcing-status" class="status" role="status"></p>
+    </section>
+    <section id="sourcing-results" class="sourcing-results" hidden aria-live="polite">
+      <div class="wb-heading"><div><p class="wb-kicker">02 / OBSERVED SNAPSHOT</p><h2>品类信息快照</h2></div><div class="sourcing-result-actions"><button id="sourcing-json" class="quiet-button small" type="button">下载 JSON</button><button id="sourcing-csv" class="quiet-button small" type="button">下载产品 CSV</button></div></div>
+      <p id="sourcing-provenance" class="wb-muted"></p>
+      <div id="sourcing-metrics" class="sourcing-metrics"></div>
+      <div class="sourcing-summary-grid">
+        <section class="sourcing-panel"><h3>差异化特征出现情况</h3><div id="sourcing-features-table"></div></section>
+        <section class="sourcing-panel"><h3>评论问题主题</h3><div id="sourcing-themes"></div></section>
+      </div>
+      <div id="sourcing-errors" class="sourcing-errors"></div>
+      <section class="sourcing-panel sourcing-products-panel"><div class="wb-heading"><h3>商品详情页逐款观察</h3><span id="sourcing-product-count" class="wb-muted"></span></div><div id="sourcing-products" class="sourcing-products"></div></section>
+      <section id="sourcing-candidates-panel" class="sourcing-panel" hidden><h3>搜索页候选（未读取到 PDP）</h3><p class="wb-muted">候选仅用于发现 ASIN；价格、重量和评论字段未作为详情页证据。</p><div id="sourcing-candidates"></div></section>
+      <p class="sourcing-caveat">结论口径：页面字段是“公开页面声明/抓取到的可见样本”，不是实验室性能验证；差评率优先使用公开星级分布，没有分布时仅显示可见评论样本比例。</p>
+    </section>
+  </main>
+  <script src="/sourcing.js" defer></script>
+</body>
+</html>
