@@ -21,6 +21,7 @@ const { buildFeatureDefinitions, summarizeCategory } = require('./lib/product-in
 const { createReportWorkflowService, resolveReportDownload } = require('./lib/report-workflow');
 const { createReportJobs } = require('./lib/report-jobs');
 const { createTasksHttp } = require('./lib/commerce/http.js');
+const { createReadOnlySnapshotResolver } = require('./lib/video-snapshot.js');
 const { MAX_PDF_BYTES } = require('./lib/pdf-catalog');
 const { capabilities: videoCapabilities, createVideoPlan } = require('./lib/video-workbench');
 const { buildAnalysisBrief, rankCandidates } = require('./lib/viral-replica');
@@ -85,6 +86,36 @@ function tasksHttpApp() {
     console.error(`[tasks] local task-center config unavailable: ${error.message}`);
     return null;
   }
+}
+
+// Optional local-only bridge for persisted creative snapshots. It is intentionally separate from
+// the browser payload: the trusted operator config supplies the database/meta root and an explicit
+// project allowlist. Without it, legacy manual video handoffs continue to work, while a claimed
+// snapshot reference fails closed instead of falling back to draft data.
+let videoSnapshotResolverState = null;
+function videoSnapshotResolver() {
+  if (videoSnapshotResolverState !== null) return videoSnapshotResolverState;
+  videoSnapshotResolverState = null;
+  const configPath = process.env.COMMERCE_TASKS_CONFIG;
+  if (!configPath) return null;
+  try {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const snapshotConfig = config && (config.videoSnapshot || config.video?.creativeSnapshots);
+    if (!snapshotConfig) return null;
+    const options = {
+      ...snapshotConfig,
+      dbPath: snapshotConfig.dbPath || config.dbPath,
+      assets: snapshotConfig.assets || config.assets,
+      allowedProjects: snapshotConfig.allowedProjects || (snapshotConfig.projectId ? [snapshotConfig.projectId] : undefined)
+    };
+    videoSnapshotResolverState = createReadOnlySnapshotResolver(options);
+  } catch (error) {
+    const message = error && error.code === 'snapshot_configuration_invalid'
+      ? error.message
+      : 'the trusted creative snapshot configuration is unavailable';
+    videoSnapshotResolverState = () => { throw Object.assign(new Error(message), { code: 'snapshot_unavailable' }); };
+  }
+  return videoSnapshotResolverState;
 }
 
 function reportSessionSignature(sessionId) {
@@ -483,7 +514,7 @@ async function handleRequest(req, res) {
   if (req.method === 'POST' && url.pathname === '/api/video/plan') {
     try {
       const body = await readJson(req);
-      return sendJson(res, 200, { data: createVideoPlan(body) });
+      return sendJson(res, 200, { data: createVideoPlan(body, { snapshotResolver: videoSnapshotResolver() }) });
     } catch (error) {
       return sendError(res, error.code === 'too_large' ? 413 : 400, error.code || 'invalid_video_plan', error.message || '视频简报无效。');
     }

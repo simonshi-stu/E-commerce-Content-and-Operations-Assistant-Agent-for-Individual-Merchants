@@ -6,10 +6,19 @@
 - `/reports.html?entry=track&category=…&market=…`：打开无 PDF 研究入口，不隐式恢复上一个品类任务。历史头盔报告折叠保留，不改写历史事实。
 - `/content.html`：保留原内容草稿编辑器。`/intel.html` 和 `/tasks.html` 原有能力保留。
 - `/video.html`：两条制作路线、用户记录的抖音/TikTok 候选按播放量排序、商品/人物/素材本地选择与预览、参考视频播放、手动切点、画面变化候选扫描、四维观察笔记、逐字稿、分镜编辑、文字草稿和交接包导出。
-- `POST /api/video/plan`：纯校验/规划，返回 `output.status=not_generated`。不读媒体、不写文件、不联网、不运行 CLI。
+- `POST /api/video/plan`：纯校验/规划，返回 `output.status=not_generated`。不读浏览器选择的媒体、不写文件、不联网、不运行 CLI；若配置了受信素材索引，只为哈希证据重新读取其受控根目录文件字节。
+- `POST /api/video/plan` 可选 `snapshotRef: { briefId, version }`：仅在本地可信配置 `COMMERCE_TASKS_CONFIG.videoSnapshot` 提供只读 `dbPath`、`metaRoot` 和明确项目白名单时，按已持久化 `creative_briefs`/snapshot 文件解析；客户端不能提交快照哈希、路径或权限。绑定失败时拒绝，不降级成手工事实。
 - `POST /api/video/rank-candidates`：只校验和排序用户从已登录平台搜索页记录的候选；`completeSearch=false`，不声称全平台最高播放量。
 - `POST /api/video/analysis-brief`：把候选元数据、逐字稿和用户观察组织成待审核拆解简报，不把参考视频的画面、人物、声音或事实变成可发布素材。
 - `GET /api/video/capabilities`：明确报告 `handoff_only`，不能误报 Hypit Runtime 或生成模型已接通。
+
+### Creative snapshot 交接状态
+
+没有 `snapshotRef` 的旧请求仍返回 `handoff.status=draft_unverified`，商品事实、素材元数据和参考笔记不会被升级为受控证据。带有 `snapshotRef` 的请求返回只读快照文件哈希、项目/商品族/SKU/design 作用域、事实版本与 `contentSha256`、素材版本与内容哈希；当前版本不一致、跨项目或引用篡改均拒绝。
+
+快照中的素材哈希不是自动的媒体字节核验。只有可信素材索引同时提供 `assetId`、精确 project/passport/SKU/family/design 绑定、稳定索引哈希，并由服务端在受控根目录重新读取文件字节且与快照哈希一致时，才返回 `media.verified=true`。现有通用目录索引若没有这组精确绑定，handoff 会明确保持 `unverified`，不会声称已验证媒体哈希。
+
+可信配置形状为 `COMMERCE_TASKS_CONFIG` 中的 `videoSnapshot: { dbPath?, metaRoot, projectId? | allowedProjects, assets? }`；未配置明确项目白名单时，快照路线关闭。`assets` 复用现有只读索引配置 `{ indexFilePath, roots }`，不接受浏览器传入的路径。
 
 ## 尚未接通（不是已完成能力）
 

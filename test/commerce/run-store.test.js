@@ -199,9 +199,16 @@ test('0004 migration adds the append-only event log and reverts locally', { skip
   const triggers = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all().map((row) => row.name));
   assert.ok(triggers.has('run_events_append_only_update') && triggers.has('run_events_append_only_delete'));
 
-  const run = store.createRun(db, 'proj-a', { taskType: 'synthetic-job', now: T0 });
-  assert.throws(() => db.prepare('UPDATE run_events SET actor = ? WHERE run_id = ?').run('x', run.id), /append-only/);
-  assert.throws(() => db.prepare('DELETE FROM run_events WHERE run_id = ?').run(run.id), /append-only/);
+  // This is deliberately an m4-only fixture: production createRun() requires the m5 lease_token
+  // column, so seed the core-schema parent and one event directly instead of smuggling m5 into the
+  // migration assertion.
+  const runId = 'run_m4_fixture';
+  db.prepare(`INSERT INTO runs (id, project_id, task_type, status, created_at, updated_at)
+    VALUES (?, ?, ?, 'queued', ?, ?)`).run(runId, 'proj-a', 'synthetic-job', T0, T0);
+  db.prepare(`INSERT INTO run_events (id, project_id, run_id, event_type, actor, payload_json, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`).run('evt_m4_fixture', 'proj-a', runId, 'run_created', 'tester', '{}', T0);
+  assert.throws(() => db.prepare('UPDATE run_events SET actor = ? WHERE run_id = ?').run('x', runId), /append-only/);
+  assert.throws(() => db.prepare('DELETE FROM run_events WHERE run_id = ?').run(runId), /append-only/);
 
   assert.deepEqual(migrateDown(db, [core, m4], { to: 1 }), [4]);
   assert.deepEqual(listApplied(db).map((row) => row.version), [1]);

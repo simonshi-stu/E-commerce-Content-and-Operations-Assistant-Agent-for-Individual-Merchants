@@ -55,11 +55,11 @@ function scopeOf(input) {
   const { ttlMs, ...scope } = input;
   return scope;
 }
-function freshIdem(label) {
+function freshIdem(label, { withAttemptRemote = false } = {}) {
   const dir = fs.mkdtempSync(path.join(TMP_ROOT, `idem-${label}-`));
   const dbPath = path.join(dir, 'idempotency.db');
   const db = openDb(dbPath);
-  migrateUp(db, [m6, m7]);
+  migrateUp(db, withAttemptRemote ? [m6, m7, m8] : [m6, m7]);
   return { dir, dbPath, db };
 }
 
@@ -162,7 +162,7 @@ test('T2.3 TTL endpoints and observation freshness', { skip }, () => {
 });
 
 test('T2.3 stable operation identity, timeout and transactional claims', { skip }, () => {
-  const { dbPath, db } = freshIdem('ops');
+  const { dbPath, db } = freshIdem('ops', { withAttemptRemote: true });
   const scope = scopeOf(baseInput());
 
   const first = idem.claimOperation(db, { operationId: 'op-1', scope, capability: 'unknown', now: T0 });
@@ -218,7 +218,7 @@ test('T2.3 stable operation identity, timeout and transactional claims', { skip 
 });
 
 test('T2.3 reconciliation states and worker crash reference linkage', { skip }, () => {
-  const { dir, db } = freshIdem('reconcile');
+  const { dir, db } = freshIdem('reconcile', { withAttemptRemote: true });
   const scope = scopeOf(baseInput());
 
   // unknown stays pending/manual; not_submitted requires explicit evidence
@@ -299,7 +299,7 @@ test('T2.3 reconciliation states and worker crash reference linkage', { skip }, 
   wdb.close();
 
   const idb = openDb(path.join(dir, 'idem-link.db'));
-  migrateUp(idb, [m6, m7]);
+  migrateUp(idb, [m6, m7, m8]);
   const workerScope = scopeOf(baseInput({ taskId: 'worker-task', inputHash: task.inputHash }));
   const adopted = idem.adoptWorkerReference(idb, { operationId: durable.operationId, remoteId: durable.remoteId, scope: workerScope, capability: 'unknown', committed: durable.committed, source: 'worker_cancel', now: T1 });
   assert.equal(adopted.decision, 'pending_reconcile');
@@ -335,7 +335,7 @@ test('T2.3 reconciliation states and worker crash reference linkage', { skip }, 
 // ---------- revision-01 focused groups ----------
 
 test('T2.3-rev01 F1: retry reservation is single-use and token-bound', { skip }, () => {
-  const { dbPath, db } = freshIdem('f1r1');
+  const { dbPath, db } = freshIdem('f1r1', { withAttemptRemote: true });
   const scope = scopeOf(baseInput());
   const first = idem.claimOperation(db, { operationId: 'op-f1', scope, capability: 'unknown', now: T0 });
   const token1 = first.operation.attemptToken;
@@ -387,7 +387,7 @@ test('T2.3-rev01 F1: retry reservation is single-use and token-bound', { skip },
 });
 
 test('T2.3-rev01 F2: recovery, cancellation and persisted reconcile evidence', { skip }, () => {
-  const { dbPath, db } = freshIdem('f2r1');
+  const { dbPath, db } = freshIdem('f2r1', { withAttemptRemote: true });
   const scope = scopeOf(baseInput());
 
   // adopt on an existing claimed row persists pending + remote binding (never a fake state)
@@ -400,7 +400,7 @@ test('T2.3-rev01 F2: recovery, cancellation and persisted reconcile evidence', {
   assert.equal(idem.reconcileOperation(db, 'op-f2a', { attemptToken: adoptedClaimed.operation.attemptToken, query: 'unknown', now: T1 }).decision, 'manual');
 
   // conflicting remote reference fails closed
-  assert.throws(() => idem.adoptWorkerReference(db, { operationId: 'op-f2a', remoteId: 'remote-conflict', scope, capability: 'unknown', now: T1 }), /different remote reference/);
+  assert.throws(() => idem.adoptWorkerReference(db, { operationId: 'op-f2a', remoteId: 'remote-conflict', scope, capability: 'unknown', attemptToken: claimed.operation.attemptToken, now: T1 }), /different remote reference/);
 
   // adopt on a submitted row also persists pending
   const c2 = idem.claimOperation(db, { operationId: 'op-f2b', scope, capability: 'unknown', now: T0 });
@@ -532,6 +532,9 @@ test('T2.3-rev01 legal readback and 0007 migration chain', { skip }, () => {
   assert.deepEqual(migrateUp(db, [m7]), [7], 're-up 0007 after down');
   const restored = verifyDatabaseFile(backupPath, { expectedTables: ['cache_entries', 'idempotent_operations', 'operation_attempts', 'reconcile_events'] });
   assert.equal(restored.ok, true, JSON.stringify(restored));
+  // Keep the [1-7] pre-m8 migration/up-down assertions independent; enable the structured
+  // per-attempt remote column only before the lifecycle that exercises it.
+  assert.deepEqual(migrateUp(db, [m8]), [8], 'the remote-id lifecycle fixture applies 0008 explicitly');
 
   // normal legal path still works end to end
   const scope = scopeOf(baseInput());
@@ -558,7 +561,7 @@ test('T2.3-rev01 legal readback and 0007 migration chain', { skip }, () => {
 // ---------- revision-02 focused groups ----------
 
 test('T2.3-rev02 F1: recovery is identity-fenced and reservations consume the bounded budget', { skip }, () => {
-  const { dbPath, db } = freshIdem('f1r2');
+  const { dbPath, db } = freshIdem('f1r2', { withAttemptRemote: true });
   const scope = scopeOf(baseInput());
 
   // recovery fence: stale/missing identity is rejected with zero writes
@@ -647,7 +650,7 @@ test('T2.3-rev02 F1: recovery is identity-fenced and reservations consume the bo
 });
 
 test('T2.3-rev02 F2: cancellation lifecycle is monotonic and retry-eligible states are cancellable', { skip }, () => {
-  const { db } = freshIdem('f2r2');
+  const { db } = freshIdem('f2r2', { withAttemptRemote: true });
   const scope = scopeOf(baseInput());
 
   // cancelled + late effective is monotonic: negative/unknown cannot downgrade
@@ -710,7 +713,7 @@ test('T2.3-rev02 F2: cancellation lifecycle is monotonic and retry-eligible stat
 });
 
 test('T2.3-rev02 legal readback: normal lifecycle and evidence readback', { skip }, () => {
-  const { dbPath, db } = freshIdem('r2readback');
+  const { dbPath, db } = freshIdem('r2readback', { withAttemptRemote: true });
   const scope = scopeOf(baseInput());
   const input = baseInput({ taskId: 'rev02-legal' });
   idem.putCache(db, input, { value: { price: 21 }, factKind: 'fact', observedAt: T0, now: T0 });

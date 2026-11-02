@@ -253,7 +253,7 @@ test/                     Node 内置测试和拒绝路径测试
 | `GET /api/video/capabilities` | 报告视频能力状态 | 当前是 `handoff_only` |
 | `POST /api/video/rank-candidates` | 排序用户输入的候选 | 不是平台全量搜索 |
 | `POST /api/video/analysis-brief` | 组织人工观察和逐字稿 | 不声称已经完成模型语义分析 |
-| `POST /api/video/plan` | 校验素材、权利、分镜并生成交接数据 | 不读媒体、不上传、不 Build |
+| `POST /api/video/plan` | 校验素材、权利、分镜并生成交接数据；可选绑定只读 creative snapshot | 不上传、不 Build；仅可为受信索引哈希证据读取受控文件字节，旧手工请求仍为 `draft_unverified` |
 | `/api/reports/jobs/*` | 报告任务、审计、研究、构建、预览和下载 | 下载受独立审核门控制 |
 | `/tasks-api/*` | 受控任务中心 | 未配置 `COMMERCE_TASKS_CONFIG` 时关闭 |
 
