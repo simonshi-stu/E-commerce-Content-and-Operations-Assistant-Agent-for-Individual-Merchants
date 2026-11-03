@@ -22,6 +22,7 @@ const { createReportWorkflowService, resolveReportDownload } = require('./lib/re
 const { createReportJobs } = require('./lib/report-jobs');
 const { createTasksHttp } = require('./lib/commerce/http.js');
 const { createReadOnlySnapshotResolver } = require('./lib/video-snapshot.js');
+const { createReadOnlyVideoRuntimeResultAdapter } = require('./lib/video-runtime-result.js');
 const { MAX_PDF_BYTES } = require('./lib/pdf-catalog');
 const { capabilities: videoCapabilities, createVideoPlan } = require('./lib/video-workbench');
 const { buildAnalysisBrief, rankCandidates } = require('./lib/viral-replica');
@@ -116,6 +117,52 @@ function videoSnapshotResolver() {
     videoSnapshotResolverState = () => { throw Object.assign(new Error(message), { code: 'snapshot_unavailable' }); };
   }
   return videoSnapshotResolverState;
+}
+
+// Optional read-only bridge for VID runtime results. The operator config supplies the result,
+// media and export roots; the browser can only provide safe operation/snapshot references.
+// A missing or invalid bridge is cached as disabled so the page never falls back to browser JSON.
+let videoRuntimeResultAdapterState;
+function videoRuntimeResultAdapter() {
+  if (videoRuntimeResultAdapterState !== undefined) return videoRuntimeResultAdapterState;
+  videoRuntimeResultAdapterState = null;
+  const configPath = process.env.COMMERCE_TASKS_CONFIG;
+  if (!configPath) return null;
+  try {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const runtimeConfig = config && (config.videoRuntime || config.videoRuntimeResult || config.video?.runtimeResult);
+    if (!runtimeConfig) return null;
+    const snapshotResolver = videoSnapshotResolver();
+    if (typeof snapshotResolver !== 'function') {
+      throw Object.assign(new Error('trusted snapshot bridge is required'), { code: 'runtime_configuration_invalid' });
+    }
+    if (!runtimeConfig || typeof runtimeConfig !== 'object' || Array.isArray(runtimeConfig)) {
+      throw Object.assign(new Error('runtime result configuration must be an object'), { code: 'runtime_configuration_invalid' });
+    }
+    videoRuntimeResultAdapterState = createReadOnlyVideoRuntimeResultAdapter({
+      ...runtimeConfig,
+      snapshotResolver,
+      projectId: runtimeConfig.projectId !== undefined ? runtimeConfig.projectId : config.videoSnapshot?.projectId,
+      allowedProjects: runtimeConfig.allowedProjects !== undefined ? runtimeConfig.allowedProjects : config.videoSnapshot?.allowedProjects
+    });
+  } catch (error) {
+    const code = error && /^runtime_/.test(error.code || '') ? error.code : 'runtime_configuration_invalid';
+    videoRuntimeResultAdapterState = {
+      disabled: true,
+      error: Object.assign(new Error('the runtime result bridge is unavailable'), { code }),
+      read() { throw this.error; }
+    };
+  }
+  return videoRuntimeResultAdapterState;
+}
+
+function videoRuntimeCapability() {
+  const adapter = videoRuntimeResultAdapter();
+  return {
+    configured: Boolean(adapter && typeof adapter.read === 'function' && !adapter.disabled),
+    readOnly: true,
+    source: 'backend_controlled_runtime_directory'
+  };
 }
 
 function reportSessionSignature(sessionId) {
@@ -273,6 +320,94 @@ function jobErrorStatus(code) {
   if (code === 'invalid_request' || code === 'invalid_task_type' || code === 'invalid_revision' || code === 'invalid_confirmation'
     || code === 'invalid_json' || code === 'invalid_pdf' || code === 'invalid_audit_action' || code === 'invalid_screenshot') return 400;
   return 500;
+}
+
+function runtimeErrorStatus(code) {
+  if (code === 'runtime_configuration_invalid' || code === 'runtime_unavailable' || code === 'runtime_snapshot_unavailable' || code === 'snapshot_unavailable'
+    || code === 'runtime_persistence_unavailable' || code === 'runtime_persistence_incomplete') return 503;
+  if (code === 'runtime_result_not_found' || code === 'runtime_artifact_unavailable' || code === 'runtime_snapshot_not_found' || code === 'snapshot_not_found') return 404;
+  if (code === 'runtime_revision_stale' || code === 'runtime_revision_conflict' || code === 'runtime_binding_mismatch' || code === 'runtime_scope_mismatch' || code === 'runtime_request_mismatch'
+    || code === 'snapshot_stale' || code === 'snapshot_scope_mismatch' || code === 'snapshot_project_forbidden') return 409;
+  if (code === 'runtime_artifact_path_unsafe' || code === 'runtime_result_invalid' || code === 'runtime_schema_unsupported' || code === 'runtime_operation_mismatch' || code === 'runtime_project_forbidden' || code === 'runtime_budget_exceeded' || code === 'runtime_persistence_corrupt') return 422;
+  return 400;
+}
+
+function runtimeErrorMessage(code) {
+  const messages = {
+    runtime_configuration_invalid: 'Runtime result consumption is disabled because its trusted local configuration is unavailable.',
+    runtime_unavailable: 'The configured runtime result source is unavailable.',
+    runtime_snapshot_unavailable: 'The current trusted creative snapshot is unavailable.',
+    runtime_snapshot_not_found: 'The requested trusted creative snapshot was not found.',
+    snapshot_unavailable: 'The trusted creative snapshot bridge is unavailable.',
+    snapshot_not_found: 'The requested trusted creative snapshot was not found.',
+    snapshot_stale: 'The trusted creative snapshot is no longer current.',
+    snapshot_scope_mismatch: 'The trusted creative snapshot scope does not match.',
+    snapshot_project_forbidden: 'The trusted creative snapshot project is not authorized.',
+    runtime_result_not_found: 'The requested runtime result was not found.',
+    runtime_artifact_unavailable: 'A controlled runtime artifact could not be read.',
+    runtime_revision_stale: 'An older runtime revision was rejected.',
+    runtime_revision_conflict: 'The same runtime revision changed and was rejected.',
+    runtime_binding_mismatch: 'The runtime result does not match the current trusted snapshot.',
+    runtime_scope_mismatch: 'The runtime project does not match the current trusted snapshot.',
+    runtime_request_mismatch: 'The runtime request digest does not match.',
+    runtime_artifact_path_unsafe: 'A controlled runtime artifact path was rejected.',
+    runtime_result_invalid: 'The runtime result failed contract validation.',
+    runtime_schema_unsupported: 'The runtime result schema is not supported.',
+    runtime_operation_mismatch: 'The runtime operation does not match the request.',
+    runtime_project_forbidden: 'The runtime project is not authorized for this local consumer.',
+    runtime_budget_exceeded: 'The runtime budget summary exceeds the approved cap.',
+    runtime_persistence_unavailable: 'The durable runtime receipt index is unavailable; the result remains blocked.',
+    runtime_persistence_incomplete: 'The durable runtime receipt index has an unfinished atomic replacement; the result remains blocked.',
+    runtime_persistence_corrupt: 'The durable runtime receipt index is corrupt; the result remains blocked.'
+  };
+  return messages[code] || 'The runtime result could not be consumed safely.';
+}
+
+function runtimeReferenceFromUrl(url) {
+  const allowed = new Set(['briefId', 'version', 'operationId', 'projectId', 'requestDigest']);
+  for (const key of url.searchParams.keys()) if (!allowed.has(key)) throw Object.assign(new Error('unsupported runtime reference'), { code: 'runtime_result_invalid' });
+  const readSingle = (name, required = false) => {
+    const values = url.searchParams.getAll(name);
+    if (values.length > 1 || (required && values.length !== 1)) throw Object.assign(new Error('invalid runtime reference'), { code: 'runtime_result_invalid' });
+    return values[0];
+  };
+  const briefId = readSingle('briefId', true);
+  const versionText = readSingle('version', true);
+  const operationId = readSingle('operationId', true);
+  if (!/^[A-Za-z0-9._-]{1,160}$/.test(briefId) || briefId === '.' || briefId === '..') throw Object.assign(new Error('invalid runtime reference'), { code: 'runtime_result_invalid' });
+  const version = Number(versionText);
+  if (!Number.isSafeInteger(version) || version < 1) throw Object.assign(new Error('invalid runtime reference'), { code: 'runtime_result_invalid' });
+  if (!/^[A-Za-z0-9._-]{1,160}$/.test(operationId) || operationId === '.' || operationId === '..') throw Object.assign(new Error('invalid runtime reference'), { code: 'runtime_result_invalid' });
+  const request = { briefId, version, operationId };
+  const projectId = readSingle('projectId');
+  const requestDigest = readSingle('requestDigest');
+  if (projectId !== undefined) {
+    if (!/^[A-Za-z0-9._-]{1,160}$/.test(projectId) || projectId === '.' || projectId === '..') throw Object.assign(new Error('invalid runtime reference'), { code: 'runtime_result_invalid' });
+    request.projectId = projectId;
+  }
+  if (requestDigest !== undefined) {
+    if (!/^[a-f0-9]{64}$/.test(requestDigest)) throw Object.assign(new Error('invalid runtime reference'), { code: 'runtime_result_invalid' });
+    request.requestDigest = requestDigest;
+  }
+  return request;
+}
+
+const IN_FLIGHT_RUNTIME_STATES = new Set(['submitting', 'submission_unknown', 'queued', 'running']);
+
+function runtimeReadiness(result) {
+  const reasons = [];
+  if (result.state !== 'succeeded') reasons.push(`state_${result.state}`);
+  if (result.mode !== 'real') reasons.push('simulated_mode_only');
+  if (result.media.status !== 'verified') reasons.push('media_not_verified');
+  if (result.qa.status !== 'passed') reasons.push('qa_not_passed');
+  if (result.export.status !== 'ready') reasons.push('export_not_ready');
+  const inFlight = IN_FLIGHT_RUNTIME_STATES.has(result.state);
+  return {
+    ready: reasons.length === 0,
+    reasons,
+    newPaidWorkAllowed: !inFlight && result.state !== 'blocked' && result.budget.usageKnown === true
+      && result.budget.reservedMinor + result.budget.settledMinor < result.budget.capMinor
+  };
 }
 
 function uploadSinglePdf(req) {
@@ -493,7 +628,27 @@ async function handleRequest(req, res) {
     });
   }
   if (req.method === 'GET' && url.pathname === '/api/video/capabilities') {
-    return sendJson(res, 200, { data: videoCapabilities() });
+    return sendJson(res, 200, { data: { ...videoCapabilities(), runtimeResult: videoRuntimeCapability() } });
+  }
+  if (req.method === 'GET' && url.pathname === '/api/video/runtime-result') {
+    let reference;
+    try {
+      reference = runtimeReferenceFromUrl(url);
+    } catch (error) {
+      return sendError(res, runtimeErrorStatus(error.code || 'runtime_result_invalid'), error.code || 'runtime_result_invalid', runtimeErrorMessage(error.code || 'runtime_result_invalid'));
+    }
+    const adapter = videoRuntimeResultAdapter();
+    if (!adapter || adapter.disabled) {
+      const code = adapter?.error?.code || 'runtime_configuration_invalid';
+      return sendError(res, runtimeErrorStatus(code), code, runtimeErrorMessage(code));
+    }
+    try {
+      const result = adapter.read(reference);
+      return sendJson(res, 200, { data: result, consumption: runtimeReadiness(result) });
+    } catch (error) {
+      const code = error && error.code ? error.code : 'runtime_result_invalid';
+      return sendError(res, runtimeErrorStatus(code), code, runtimeErrorMessage(code));
+    }
   }
   if (req.method === 'POST' && url.pathname === '/api/video/rank-candidates') {
     try {

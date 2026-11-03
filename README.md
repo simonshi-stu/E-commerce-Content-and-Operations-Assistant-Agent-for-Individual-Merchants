@@ -254,6 +254,7 @@ test/                     Node 内置测试和拒绝路径测试
 | `POST /api/video/rank-candidates` | 排序用户输入的候选 | 不是平台全量搜索 |
 | `POST /api/video/analysis-brief` | 组织人工观察和逐字稿 | 不声称已经完成模型语义分析 |
 | `POST /api/video/plan` | 校验素材、权利、分镜并生成交接数据；可选绑定只读 creative snapshot | 不上传、不 Build；仅可为受信索引哈希证据读取受控文件字节，旧手工请求仍为 `draft_unverified` |
+| `GET /api/video/runtime-result` | 读取后端受控的 `commerce.video-runtime-result.v1` | 只接受安全引用；不接受浏览器 JSON、路径、密钥、URL 或生成指令 |
 | `/api/reports/jobs/*` | 报告任务、审计、研究、构建、预览和下载 | 下载受独立审核门控制 |
 | `/tasks-api/*` | 受控任务中心 | 未配置 `COMMERCE_TASKS_CONFIG` 时关闭 |
 
@@ -441,6 +442,122 @@ Content-Type: application/json
 
 如果用户尝试下载未审核工作簿，服务端返回 `release_blocked`；如果客户端持有旧版本链接，服务端返回版本不匹配，而不是静默交付旧文件。
 
+### 6.9 受控视频回执技术预览：handoff 不等于生成
+
+视频链路现在有两个必须分开的边界：
+
+- **handoff**：`POST /api/video/plan` 只校验事实、素材引用、权利和分镜，返回 `output.status="not_generated"`；它不上传、不运行 CLI、不 Build、不生成 MP4。
+- **runtime receipt 消费**：`GET /api/video/runtime-result` 只从服务端配置的受控结果、媒体和导出目录读取 `commerce.video-runtime-result.v1`。它是只读技术预览，不是主应用内的视频生成器，也不授予 provider、上传、付费或发布权限。
+
+实际业务流如下。浏览器只提交最后一列的引用，服务端配置和受信存储决定其余边界：
+
+```text
+本地项目 / Creative brief
+        │
+        ▼
+SQLite creative_briefs + 版本化 snapshot JSON/head
+        │ 只读 project / brief / version / snapshot hash
+        ▼
+GET runtime 引用 ──► v1 结果规范化
+                         │
+                         ├─ binding / requestDigest / revision / scope
+                         ├─ controlled media bytes + SHA-256
+                         ├─ QA / export / CNY 10.00 摘要
+                         ▼
+                 原子 JSON 消费索引
+                 .runtime-consumption/index.json
+                         │
+                         ▼
+              ready / needs_review / blocked
+```
+
+`runtime` 消费索引不是 SQLite 表，也不是 provider 的官方账单。它位于后端配置的 `resultRoot` 下，保存 `commerce.video-runtime-consumption-index.v1`：每个 operation 的规范化结果和 digest，以及 `media`/`export` artifact 的 operation+binding 作用域。写入使用 `index.json.tmp`、文件同步、rename 和目录同步；临时文件、缺失索引、symlink、损坏 JSON 或 digest 不一致时 fail closed。已有索引遇到源回执缺失或损坏时可以恢复一个 `blocked` 结果，但不能恢复为 `ready`。
+
+关键状态不会被漂亮页面改写：
+
+| 状态/字段 | 实际含义 |
+|---|---|
+| `mode="simulated"` | 合成或离线演示；页面显著标记，不能升级为 real |
+| `state="submission_unknown"` / `queued` / `running` | 远端结果未知或进行中；保留原状态，不自动重发、不清预算 |
+| `state="succeeded"` | provider 状态，不代表媒体已验证、QA 已通过或可导出 |
+| `qa.status="needs_review"` | 仍需人工审核；不能导出真实成片 |
+| `budget.usageKnown=false` | 费用摘要未知；不能授权新的付费工作 |
+| `blocked` | 源、作用域、媒体字节、QA 或导出证据不安全；页面显示继续审核原因和大写安全错误码 |
+
+受控配置只由本地操作员提供，浏览器不能提供路径或哈希：
+
+```json
+{
+  "videoSnapshot": {
+    "dbPath": "./private/commerce.db",
+    "metaRoot": "./private/creative-snapshots",
+    "projectId": "project-demo"
+  },
+  "videoRuntime": {
+    "resultRoot": "./private/runtime-results",
+    "mediaRoot": "./private/runtime-results/media",
+    "exportRoot": "./private/runtime-results/export",
+    "projectId": "project-demo"
+  }
+}
+```
+
+请求只携带受控引用：
+
+```http
+GET /api/video/runtime-result?briefId=brief-demo&version=1&operationId=operation-demo
+```
+
+若源回执已被消费后再缺失，响应仍保留原 `reservedMinor`/`usageKnown`，并返回类似：
+
+```json
+{
+  "data": {
+    "mode": "simulated",
+    "state": "blocked",
+    "errors": ["RUNTIME_RESULT_SOURCE_UNAVAILABLE"],
+    "export": { "status": "not_ready", "artifactId": null }
+  },
+  "consumption": { "ready": false, "newPaidWorkAllowed": false }
+}
+```
+
+### 6.10 实际数据模型和代码导航
+
+SQLite 由内置 `node:sqlite` 驱动，迁移通过 `schema_migrations` 记录版本、名称、checksum 和时间；每次迁移与 ledger 行在同一个事务中执行，checksum 漂移拒绝继续。核心关系不是一张宽表：
+
+```text
+project_id（所有业务域的隔离边界）
+  ├─ product_passports ──< skus
+  │                    ├─< creative_briefs ──> versioned snapshot JSON/head
+  │                    └─< assets
+  ├─ evidence ──< observations
+  ├─ runs ──< run_events / feedback
+  ├─ idempotent_operations ──< operation_attempts   （独立幂等域）
+  └─ budget_pools ──< budget_reservations ──< budget_events（独立预算域）
+```
+
+`creative_briefs` 的 SQLite 行绑定项目、商品 passport、可选 SKU、渠道、locale 和版本；`lib/video-snapshot.js` 只读打开数据库，再核对版本化 snapshot 文件、head、identity 和 SHA-256。若配置了可信素材索引，还会按 project/passport/SKU/family/design/version 作用域重新读取文件字节；元数据哈希本身不能变成媒体证据。
+
+代码入口：
+
+- `server.js`：本地 HTTP 边界、`COMMERCE_TASKS_CONFIG`、只读 runtime 路由和错误状态映射。
+- `lib/video-snapshot.js`：SQLite creative brief 与受控 snapshot/asset 索引的只读桥。
+- `lib/video-runtime-result.js`：v1 规范化、binding/revision/scope、媒体/导出实字节核验和持久消费索引。
+- `lib/commerce/db.js`、`lib/commerce/migrations/`：SQLite 打开、WAL/foreign keys、迁移 checksum、备份和完整性检查。
+- `public/video.html`、`public/video.js`：handoff、runtime 只读面板和本地审核状态；浏览器不持有后端路径权限。
+- `test/video-runtime-result.test.js`、`test/video-client-state.test.js`、`test/video-snapshot-handoff.test.js`：契约、重启、损坏/缺失、scope、字节核验和页面状态拒绝路径。
+
+核心消费代码保持显式门禁，而不是相信回执中的声明：
+
+```js
+const result = adapter.read({
+  briefId: 'brief-demo', version: 1, operationId: 'operation-demo'
+});
+// result.mode/state/media/qa/export are server-normalized values.
+// A provider-declared export is not ready until controlled bytes match.
+```
+
 ## 7. 本地运行
 
 ### 环境要求
@@ -449,6 +566,8 @@ Content-Type: application/json
 - `npm install` 安装依赖；
 - 需要真实模型调用时，配置一个本地、被忽略的 `.env.deepseek.local`；
 - 不要把任何真实 API key 写入源码、README、SVML、Runtime Profile 或 Git。
+
+基础服务遵循 `package.json` 的 Node.js `>=18` 声明；SQLite 业务内核使用 Node 内置 `node:sqlite`，运行任务中心、快照桥和完整测试时应使用已提供该模块的 Node 版本。当前完整验证使用 Node.js 24.18.0；项目不安装 `better-sqlite3`。
 
 ```sh
 npm install
@@ -479,6 +598,26 @@ npm test
 
 测试覆盖验证、拒绝路径、路径穿越、外部 URL、成本和价格计算、幂等、预算、隐私 profile、报告版本、审核门、视频权利门和 HTTP 回归。
 
+在 Windows PowerShell 中，涉及把 HTTP 应用复制到临时目录的测试使用仓库外临时根，并让临时子进程复用已经安装的依赖；`NODE_PATH` 只是模块解析路径，不会安装依赖：
+
+```powershell
+$env:COMMERCE_TEST_TMP = (Join-Path $env:TEMP 'commerce-workbench-test')
+New-Item -ItemType Directory -Force $env:COMMERCE_TEST_TMP | Out-Null
+$env:NODE_PATH = (Join-Path (Get-Location) 'node_modules')
+npm test
+```
+
+当前一套完整测试计数为 `420 pass / 0 fail / 0 skip`；重复或由不同核验角色执行同一套 420 不相加。可复现的 synthetic runtime 演示只创建合成 JSON 和占位字节，不联网、不调用 provider：
+
+```powershell
+$env:COMMERCE_TEST_TMP = (Join-Path $env:TEMP 'commerce-runtime-demo')
+New-Item -ItemType Directory -Force $env:COMMERCE_TEST_TMP | Out-Null
+$env:NODE_PATH = (Join-Path (Get-Location) 'node_modules')
+node --test --test-name-pattern='persists the full runtime binding|HTTP runtime result consumption' test/video-runtime-result.test.js
+```
+
+演示会验证 `submission_unknown` 在新 HTTP 进程后仍保留、预算不被清除，以及源回执删除后恢复为 `blocked` 和 `RUNTIME_RESULT_SOURCE_UNAVAILABLE`。测试结束会清理 synthetic fixture。本阶段新增的覆盖还包括 runtime 持久索引和相关 HTTP 回归。
+
 ## 8. 当前明确没有做什么
 
 - 没有抖音/TikTok 搜索 API；
@@ -488,6 +627,9 @@ npm test
 - 没有连接主应用的 Hypit Runtime、Seedance 或火山引擎生成 Provider；
 - 没有把静态图片轮播或简单叠图称为镜头内无痕商品替换；
 - 没有自动发布、群发、支付、投流或修改店铺数据；
+- 没有把 runtime `succeeded` 当成真实商品成片；媒体实字节、动态保真、人工 QA 和权利审核仍是独立门槛；
+- 没有官方 provider 账费、账户权限或可靠的累计费用上界；v1 中的 CNY 10.00 只是受控回执摘要和测试门禁，不是官方账单；
+- 没有把 `simulated`、`needs_review`、`submission_unknown` 或未知预算显示成可交付/可继续付费；
 - 没有 RAG、向量数据库、MCP 或 LangChain 主链路；当前确定性证据和受控工具边界优先于框架堆叠。
 
 ## 9. 重要文档
@@ -504,6 +646,8 @@ npm test
 本 checkout 仍是内部工作台，不能直接当成公开 SaaS 或多租户服务发布。根目录 `LICENSE` 不等于私有业务资料、真实报告、提示词、数据和历史全部获得发布许可。未来公开仓库应只保留经过审查的通用 UI、无敏感示例和中性占位内容；内部策略、数据、报告和真实业务逻辑应留在内部库。
 
 Hypit 的上游许可证、NOTICE、版本和服务条款以其仓库为准。当前文档记录的是上游使用和未来交接边界，不代表主应用已经取得 Hypit 托管、商业再分发或 Seedance 服务授权。
+
+主应用依赖的 `busboy` 1.6.0 和 `exceljs` 4.4.0 在当前锁定依赖元数据中标为 MIT；发布前仍应按 `package-lock.json` 和各依赖的 LICENSE/NOTICE 做完整依赖审计。公开页面、Amazon/Douyin 内容、用户上传素材、商品图片、私有报告和本地运行数据不因代码许可证获得再使用许可；README 只使用中性合成示例，不链接私有报告、本机绝对路径或敏感素材。
 
 ---
 
@@ -633,6 +777,7 @@ Important API groups:
 | `POST /api/video/rank-candidates` | rank user-supplied candidates | not a platform-wide search |
 | `POST /api/video/analysis-brief` | organize user observations/transcript | not claimed model analysis |
 | `POST /api/video/plan` | validate assets, rights, and storyboard | no upload, CLI, Build, or MP4 |
+| `GET /api/video/runtime-result` | read a backend-controlled `commerce.video-runtime-result.v1` receipt | safe references only; no browser JSON, paths, keys, URLs, or generation command |
 | `/api/reports/jobs/*` | report job lifecycle and artifacts | download requires review |
 | `/tasks-api/*` | controlled task center | disabled without local config |
 
@@ -686,9 +831,75 @@ upload PDF → inspect evidence → confirm cost and identity
 
 Old artifact versions and unreviewed workbooks are rejected server-side.
 
+### Demo F: durable runtime receipt replay
+
+The handoff and runtime-consumption boundaries are separate:
+
+```text
+POST /api/video/plan
+  → validate facts, rights, assets, storyboard
+  → output.status = "not_generated"
+  → no upload, Build, MP4, charge, or publish
+
+GET /api/video/runtime-result?briefId=...&version=1&operationId=...
+  → read only from operator-controlled result/media/export roots
+  → validate v1 binding, requestDigest, revision, artifact scope and budget summary
+  → reread media/export bytes and persist the normalized receipt atomically
+  → show ready, needs_review, or blocked without starting a provider job
+```
+
+The durable receipt index is JSON at `.runtime-consumption/index.json` below the configured `resultRoot`; it is deliberately separate from the SQLite business database and is not an official provider ledger. It stores the normalized operation result, a canonical digest, and media/export scope claims. `index.json.tmp`, missing/corrupt indexes, symlinks, invalid source receipts, or byte/hash mismatches fail closed. If a previously consumed source receipt disappears, the known result is recovered as `blocked` with `RUNTIME_RESULT_SOURCE_UNAVAILABLE`, preserving the reserved/settled budget summary.
+
+The visible states are intentionally conservative:
+
+| State or field | Meaning |
+|---|---|
+| `mode="simulated"` | synthetic/offline evidence; never upgraded to real |
+| `submission_unknown`, `queued`, `running` | retained without automatic resend or budget clearing |
+| `succeeded` | provider state only; not media, QA, or export approval |
+| `qa.status="needs_review"` | human review is still required; real output is not exportable |
+| `budget.usageKnown=false` | budget evidence is unknown; new paid work is not allowed |
+| `blocked` | source, scope, byte evidence, QA, or export gate failed; the UI shows the reason code |
+
+A synthetic replay can be run without external access. In PowerShell, set `COMMERCE_TEST_TMP` to a directory outside the repository, set `NODE_PATH` to the existing repository `node_modules`, and run:
+
+```powershell
+node --test --test-name-pattern='persists the full runtime binding|HTTP runtime result consumption' test/video-runtime-result.test.js
+```
+
+The matching tests create only synthetic JSON/byte fixtures, start and restart a local child process, preserve `submission_unknown` and reserved budget, then recover a missing source as `blocked`. `NODE_PATH` reuses existing dependencies for the temporary app; no package installation is part of this demonstration.
+
+### Implemented persistence model and code map
+
+The SQLite kernel uses built-in `node:sqlite`, a transactional `schema_migrations` ledger with checksums, and scoped tables. The relationships are intentionally separated by domain:
+
+```text
+project_id
+  ├─ product_passports ──< skus
+  │                    ├─< creative_briefs ──> versioned snapshot JSON/head
+  │                    └─< assets
+  ├─ evidence ──< observations
+  ├─ runs ──< run_events / feedback
+  ├─ idempotent_operations ──< operation_attempts
+  └─ budget_pools ──< budget_reservations ──< budget_events
+```
+
+`creative_briefs` binds project, product passport, optional SKU, channel, locale, and version. `lib/video-snapshot.js` opens the database read-only and revalidates the persisted snapshot, head, identity, and hash; a trusted asset index is only evidence after exact scope and byte reread. The runtime receipt index is not a replacement for these SQLite relations and does not become an official billing record.
+
+Key code locations:
+
+- `server.js`: HTTP boundary, trusted configuration, runtime route, and safe error mapping.
+- `lib/video-snapshot.js`: read-only SQLite/snapshot/asset bridge.
+- `lib/video-runtime-result.js`: v1 normalization, binding/revision/scope checks, byte verification, and atomic index.
+- `lib/commerce/db.js` and `lib/commerce/migrations/`: SQLite pragmas, migration checksums, backup, and integrity checks.
+- `public/video.html` and `public/video.js`: handoff UI, read-only runtime panel, and local review state.
+- `test/video-runtime-result.test.js` and `test/video-client-state.test.js`: persistence, restart, corruption, missing-source, scope, and UI refusal paths.
+
 ## 7. Local setup
 
 Requirements: Node.js 18 or later.
+
+The SQLite kernel uses built-in `node:sqlite`; the current full validation used Node.js 24.18.0, and the project does not install `better-sqlite3`.
 
 ```sh
 npm install
@@ -711,6 +922,17 @@ Run tests with:
 npm test
 ```
 
+For Windows temporary HTTP fixtures, reuse already installed dependencies without installing anything:
+
+```powershell
+$env:COMMERCE_TEST_TMP = (Join-Path $env:TEMP 'commerce-workbench-test')
+New-Item -ItemType Directory -Force $env:COMMERCE_TEST_TMP | Out-Null
+$env:NODE_PATH = (Join-Path (Get-Location) 'node_modules')
+npm test
+```
+
+The current full-suite count is `420 pass / 0 fail / 0 skip`; repeated verification of that same suite is not additive.
+
 ## 8. Explicit non-goals and limitations
 
 - no Douyin/TikTok search API or login/CAPTCHA bypass;
@@ -719,6 +941,9 @@ npm test
 - no connected Hypit Runtime, Seedance, Volcengine, or paid generation provider in the main app;
 - no claim that image compositing is invisible in-shot product replacement;
 - no automated publishing, customer messaging, payments, advertising, or store mutation;
+- no claim that `succeeded` is a real product video; media bytes, dynamic fidelity, rights, and human QA remain separate gates;
+- no official provider billing, account permission, or reliable cumulative-cost authority; the CNY 10.00 v1 summary is a bounded receipt guard, not an official invoice;
+- no promotion of `simulated`, `needs_review`, `submission_unknown`, or unknown budget into a deliverable or paid action;
 - no RAG, vector database, MCP, or LangChain in the primary path; deterministic evidence and bounded tools currently fit the problem better.
 
 ## 9. Documentation and release boundary
@@ -730,3 +955,5 @@ npm test
 - [Hypit upstream repository](https://github.com/hypit-ai/hypit)
 
 The root `LICENSE` is not clearance to publish private business data, reports, prompts, strategies, or repository history. A future public repository should contain only reviewed generic UI, neutral placeholders, and sanitized examples. Hypit's upstream license, notices, version, and service terms remain authoritative; this repository documents an internal handoff and future integration boundary, not a grant of Hypit hosting, commercial redistribution, or Seedance service rights.
+
+The checked application dependencies `busboy` 1.6.0 and `exceljs` 4.4.0 are marked MIT in the locked dependency metadata; a publication audit must still review the complete dependency tree and each applicable LICENSE/NOTICE. Public pages, Amazon/Douyin material, user uploads, product images, private reports, and local runtime data are not cleared by this source license. The README uses neutral synthetic examples and does not link private reports, absolute local paths, or sensitive assets.
