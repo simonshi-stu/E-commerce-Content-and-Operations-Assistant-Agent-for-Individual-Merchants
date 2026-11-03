@@ -17,12 +17,13 @@ const costFixture = require('./fixtures/report-cost-catalog.json');
 const merchantCostFixture = require('./fixtures/merchant-screenshot-cost-candidates.json');
 
 function samplePdf(text = 'Enough helmet catalog text ABC-123 with CPSC report and ultralight road shell', contentsRef = true) {
+  const stream = `BT /F1 12 Tf 72 720 Td (${text}) Tj ET`;
   const body = `%PDF-1.4
 1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
 2 0 obj << /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >> endobj
 3 0 obj << /Type /Page /Parent 2 0 R${contentsRef ? ' /Contents 4 0 R' : ''} >> endobj
-4 0 obj << /Length 60 >> stream
-BT /F1 12 Tf 72 720 Td (${text}) Tj ET
+4 0 obj << /Length ${Buffer.byteLength(stream, 'latin1')} >> stream
+${stream}
 endstream endobj
 5 0 obj << /Type /Page /Parent 2 0 R >> endobj
 trailer << /Root 1 0 R >>

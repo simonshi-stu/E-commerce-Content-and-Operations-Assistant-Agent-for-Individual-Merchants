@@ -57,7 +57,9 @@ temp/
 reports/
 docs/INDEPENDENT-REPORT-AUDIT.md
 scripts/*yongbao*
-test/fixtures/
+test/fixtures/*
+!test/fixtures/report-cost-catalog.json
+!test/fixtures/merchant-screenshot-cost-candidates.json
 
 # Local trial material or screenshots copied into the repository root.
 /*试采*/

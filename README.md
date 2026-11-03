@@ -609,6 +609,8 @@ npm test
 
 当前一套完整测试计数为 `420 pass / 0 fail / 0 skip`；重复或由不同核验角色执行同一套 420 不相加。可复现的 synthetic runtime 演示只创建合成 JSON 和占位字节，不联网、不调用 provider：
 
+> 口径说明：这里的 `420 pass / 0 fail / 0 skip` 是此前包含未提交或被忽略测试内容的工作区历史结果，不代表 `ff340b4` 的干净 `git archive`；干净归档的最新结果以 COM12-R1 修复提交的独立验证为准。
+
 ```powershell
 $env:COMMERCE_TEST_TMP = (Join-Path $env:TEMP 'commerce-runtime-demo')
 New-Item -ItemType Directory -Force $env:COMMERCE_TEST_TMP | Out-Null
@@ -932,6 +934,8 @@ npm test
 ```
 
 The current full-suite count is `420 pass / 0 fail / 0 skip`; repeated verification of that same suite is not additive.
+
+> Scope note: the `420 pass / 0 fail / 0 skip` figure above is a historical result from the prior worktree with uncommitted or ignored test content. It is not a clean `git archive` result for `ff340b4`; the COM12-R1 repair commit is validated independently from its archive.
 
 ## 8. Explicit non-goals and limitations
 

@@ -17,9 +17,6 @@ const path = require('node:path');
 const test = require('node:test');
 
 const W = path.resolve(__dirname, '..', '..');
-// P is the private program root; the directory token is split so the canary scan of internal
-// source files stays clean of real business-name patterns.
-const P = path.resolve(W, '..', '..', '外贸', '运动头' + '盔调研', 'private_working_2026-10-02', 'commerce_agent_program');
 const { openDb, migrateUp } = require(path.join(W, 'lib', 'commerce', 'db.js'));
 const migrations = [
   require(path.join(W, 'lib', 'commerce', 'migrations', '0001_core.js')),
@@ -198,13 +195,18 @@ test('T3.4 chain: cited contact → trusted fixture events → registered handle
     assert.equal(sha256Hex(fs.readFileSync(output.draft.path)), output.draft.sha256);
     const draft = JSON.parse(fs.readFileSync(output.draft.path, 'utf8'));
     assert.equal(draft.sent, false);
-    // task-card sample outputs (external-redacted is the safe sample)
-    const samplePath = path.join(P, 'runtime', 'exports', 'channel-sample.xlsx');
-    const sampleCsvPath = path.join(P, 'runtime', 'exports', 'channel-sample.csv');
-    for (const [source, target] of [[output.exports['external-redacted'].xlsx.path, samplePath], [output.exports['external-redacted'].csv.path, sampleCsvPath]]) {
-      const tmp = `${target}.tmp-${Date.now()}`;
-      fs.copyFileSync(source, tmp);
-      fs.renameSync(tmp, target);
+    // task-card sample outputs (external-redacted is the safe sample) stay inside this test's temp root.
+    const sampleRoot = fs.mkdtempSync(path.join(env.dir, 'task-card-sample-'));
+    try {
+      const samplePath = path.join(sampleRoot, 'channel-sample.xlsx');
+      const sampleCsvPath = path.join(sampleRoot, 'channel-sample.csv');
+      for (const [source, target] of [[output.exports['external-redacted'].xlsx.path, samplePath], [output.exports['external-redacted'].csv.path, sampleCsvPath]]) {
+        const tmp = `${target}.tmp-${Date.now()}`;
+        fs.copyFileSync(source, tmp);
+        fs.renameSync(tmp, target);
+      }
+    } finally {
+      fs.rmSync(sampleRoot, { recursive: true, force: true });
     }
     // SQL reopen
     env.db.close();

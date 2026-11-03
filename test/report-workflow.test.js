@@ -2,13 +2,15 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { after, describe, it } = require('node:test');
 
 const { createReportWorkflowService } = require('../lib/report-workflow');
 
 describe('static report package workflow', () => {
-  const root = fs.mkdtempSync(path.join(__dirname, '..', 'tmp', 'report-workflow-test-'));
+  const tempParent = fs.mkdtempSync(path.join(os.tmpdir(), 'report-workflow-test-parent-'));
+  const root = fs.mkdtempSync(path.join(tempParent, 'run-'));
   fs.mkdirSync(path.join(root, 'tmp'), { recursive: true });
   let buildCount = 0;
   const workflow = createReportWorkflowService({
@@ -31,7 +33,7 @@ describe('static report package workflow', () => {
     }
   });
 
-  after(() => fs.rmSync(root, { recursive: true, force: true }));
+  after(() => fs.rmSync(tempParent, { recursive: true, force: true }));
 
   async function waitForCompleted() {
     for (let attempt = 0; attempt < 100; attempt += 1) {

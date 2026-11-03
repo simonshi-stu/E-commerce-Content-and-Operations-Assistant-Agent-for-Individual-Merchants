@@ -1,0 +1,19 @@
+{
+  "fixtureOnly": true,
+  "warning": "Synthetic regression fixture only. Labels and amounts are fabricated test values, not production costs or sourcing data.",
+  "sourcePdf": "test/fixtures/report-cost-catalog-source.pdf",
+  "pages": [
+    [
+      "SYNTHETIC YB-96 commuter helmet test item EXW 40 CNY",
+      "SYNTHETIC HO-022 road helmet test item EXW 16 CNY"
+    ],
+    [
+      "SYNTHETIC HO-86 commuter helmet test item EXW 50 CNY",
+      "SYNTHETIC YB-15 mountain helmet test item EXW 35 CNY"
+    ],
+    [
+      "SYNTHETIC HO-168 child helmet test item EXW 35 CNY",
+      "SYNTHETIC YB-02 adjustable helmet test item EXW 60 CNY"
+    ]
+  ]
+}

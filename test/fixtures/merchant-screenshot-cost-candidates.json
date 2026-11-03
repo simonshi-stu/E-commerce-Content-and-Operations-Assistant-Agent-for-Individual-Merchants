@@ -1,0 +1,26 @@
+{
+  "fixtureOnly": true,
+  "syntheticOnly": true,
+  "source": "Synthetic regression values only; no source images or commercial records are bundled or read.",
+  "currencyCandidate": "CNY",
+  "manualConfirmationRequired": true,
+  "uniformSkuModels": ["H0-022", "H0-196", "YB-11", "YB-19"],
+  "skus": [
+    { "model": "H0-022", "configuration": "synthetic base road helmet", "amount": 16, "sourceLocation": "synthetic-fixture/H0-022" },
+    { "model": "H0-86", "configuration": "synthetic helmet + visor", "amount": 50, "sourceLocation": "synthetic-fixture/H0-86" },
+    { "model": "H0-86", "configuration": "synthetic helmet + visor + rechargeable light", "amount": 58, "sourceLocation": "synthetic-fixture/H0-86", "batteryType": "rechargeable" },
+    { "model": "H0-99", "configuration": "synthetic ordinary color", "amount": 42, "sourceLocation": "synthetic-fixture/H0-99" },
+    { "model": "H0-99", "configuration": "synthetic color-changing", "amount": 45, "sourceLocation": "synthetic-fixture/H0-99" },
+    { "model": "H0-196", "configuration": "synthetic uniform color", "amount": 24, "sourceLocation": "synthetic-fixture/H0-196" },
+    { "model": "YB-11", "configuration": "synthetic uniform configuration", "amount": 50, "sourceLocation": "synthetic-fixture/YB-11" },
+    { "model": "YB-15", "configuration": "synthetic no light", "amount": 35, "sourceLocation": "synthetic-fixture/YB-15" },
+    { "model": "YB-15", "configuration": "synthetic button-cell light", "amount": 40, "sourceLocation": "synthetic-fixture/YB-15", "batteryType": "button_cell" },
+    { "model": "YB-16", "configuration": "synthetic no light", "amount": 48, "sourceLocation": "synthetic-fixture/YB-16" },
+    { "model": "YB-16", "configuration": "synthetic rechargeable light; +10 CNY, total 58 CNY", "amount": 58, "priceStatement": "加充电灯10元即58元", "sourceLocation": "synthetic-fixture/YB-16", "batteryType": "rechargeable" },
+    { "model": "YB-16", "configuration": "synthetic LED light; +7 CNY, total 55 CNY", "amount": 55, "priceStatement": "加LED灯7元即55元", "sourceLocation": "synthetic-fixture/YB-16", "batteryType": "unknown" },
+    { "model": "YB-19", "configuration": "synthetic LED light", "amount": 38, "sourceLocation": "synthetic-fixture/YB-19", "batteryType": "unknown" },
+    { "model": "YB-96", "configuration": "synthetic helmet + visor", "amount": 40, "sourceLocation": "synthetic-fixture/YB-96" },
+    { "model": "YB-96", "configuration": "synthetic helmet + visor + button-cell light", "amount": 44, "sourceLocation": "synthetic-fixture/YB-96", "batteryType": "button_cell" },
+    { "model": "YB-96", "configuration": "synthetic helmet + visor + rechargeable light", "amount": 52, "sourceLocation": "synthetic-fixture/YB-96", "batteryType": "rechargeable" }
+  ]
+}
