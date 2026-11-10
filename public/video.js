@@ -106,6 +106,7 @@
       `operationId：${result.operationId}`,
       `provider：${providerStatusForState(result.state)}`,
       `可用性：${ready ? '满足消费条件' : `不可视为可交付（${reasons.join('、') || '证据不足'}）`}`,
+      '端到端复刻：未独立验证；受控媒体可读不代表已观看拆解爆款、真实调用模型或通过商品保真审核。',
       `新付费工作：${consumption?.newPaidWorkAllowed ? '预算摘要允许继续评估' : '禁止（仍在处理中、需继续审核或预算未知/已达上限）'}`
     ].join('\n');
     $('video-runtime-summary').textContent = summary;

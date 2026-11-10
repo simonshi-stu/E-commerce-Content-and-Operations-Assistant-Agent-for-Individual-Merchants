@@ -362,7 +362,7 @@ test('HTTP runtime result consumption exposes only controlled v1 data and readin
     assert.equal(body.consumption.ready, false);
     assert.ok(body.consumption.reasons.includes('simulated_mode_only'));
 
-    const mediaBytes = Buffer.from('http verified media bytes');
+    const mediaBytes = require('../test-support/video-pattern.cjs');
     fs.writeFileSync(path.join(mediaRoot, 'http-media.mp4'), mediaBytes);
     fs.writeFileSync(path.join(exportRoot, 'http-export.mp4'), Buffer.from('http tampered export bytes'));
     fs.writeFileSync(path.join(resultRoot, 'op-tampered.json'), JSON.stringify(baseResult({ projectId: 'project-a', briefId: document.briefId, briefVersion: 1, snapshotSha256: snapshotHash }, {

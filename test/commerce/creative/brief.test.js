@@ -1213,7 +1213,9 @@ test('T4.1 rev01 F5: a junction below metaRoot never redirects snapshot/head/DB 
     assert.deepEqual(blocked, { status: 'blocked', reason: 'unsafe_path_reparse' });
     assert.deepEqual(fs.readdirSync(outside), [], 'zero writes outside the trusted root');
     assert.equal(env.db.prepare('SELECT COUNT(*) AS n FROM creative_briefs').get().n, 0, 'zero business rows');
-    fs.rmdirSync(junction);
+    // unlink removes the link itself on POSIX and Windows; rmdir rejects a
+    // directory symlink on POSIX even though the security assertions passed.
+    fs.unlinkSync(junction);
     assert.ok(fs.existsSync(outside), 'removing the junction never removes its target');
     const persisted = creative.persistBriefPlan({ metaRoot: env.metaRoot, db: env.db, plan: built.plan, now: NOW });
     assert.equal(persisted.status, 'persisted');

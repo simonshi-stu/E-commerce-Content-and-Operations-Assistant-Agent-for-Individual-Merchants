@@ -392,23 +392,7 @@ function runtimeReferenceFromUrl(url) {
   return request;
 }
 
-const IN_FLIGHT_RUNTIME_STATES = new Set(['submitting', 'submission_unknown', 'queued', 'running']);
-
-function runtimeReadiness(result) {
-  const reasons = [];
-  if (result.state !== 'succeeded') reasons.push(`state_${result.state}`);
-  if (result.mode !== 'real') reasons.push('simulated_mode_only');
-  if (result.media.status !== 'verified') reasons.push('media_not_verified');
-  if (result.qa.status !== 'passed') reasons.push('qa_not_passed');
-  if (result.export.status !== 'ready') reasons.push('export_not_ready');
-  const inFlight = IN_FLIGHT_RUNTIME_STATES.has(result.state);
-  return {
-    ready: reasons.length === 0,
-    reasons,
-    newPaidWorkAllowed: !inFlight && result.state !== 'blocked' && result.budget.usageKnown === true
-      && result.budget.reservedMinor + result.budget.settledMinor < result.budget.capMinor
-  };
-}
+const { runtimeReadiness } = require('./lib/video-readiness');
 
 function uploadSinglePdf(req) {
   return new Promise((resolve, reject) => {
