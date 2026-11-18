@@ -423,6 +423,8 @@ async function handleReportJobs(req, res, url) {
   }
 }
 
+let localLibraryApi;
+let videoStudio;
 const server = http.createServer((req, res) => {
   req.on('error', () => {});
   res.on('error', () => {});
@@ -445,6 +447,20 @@ server.on('clientError', (error, socket) => {
 
 async function handleRequest(req, res) {
   const url = new URL(req.url, 'http://localhost');
+  if (url.pathname.startsWith('/studio/')) {
+    videoStudio ??= require('./lib/video-orders').liveStudio(ROOT);
+    return videoStudio(req,res);
+  }
+  if (url.pathname === '/library.html' || url.pathname === '/atelier.html') {
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'none'");
+    res.setHeader('Referrer-Policy', 'no-referrer');
+  }
+  if (url.pathname.startsWith('/library/')) {
+    localLibraryApi ??= require('./lib/local-library').library(require('./lib/story-selection').loadSelection(ROOT), require('./lib/ark-video-status').localAdapter(ROOT));
+    return localLibraryApi(req, res);
+  }
+  if(url.pathname==='/library.html'){res.writeHead(302,{Location:'/atelier.html'});return res.end();}
   if (url.pathname === '/reports.html' || url.pathname.startsWith('/api/reports/')) {
     req.reportActorSessionId = reportSessionId(req, res);
   }
