@@ -423,6 +423,7 @@ async function handleReportJobs(req, res, url) {
   }
 }
 
+let localLibraryApi;
 const server = http.createServer((req, res) => {
   req.on('error', () => {});
   res.on('error', () => {});
@@ -445,6 +446,17 @@ server.on('clientError', (error, socket) => {
 
 async function handleRequest(req, res) {
   const url = new URL(req.url, 'http://localhost');
+  if (url.pathname === '/library.html') {
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'none'");
+    res.setHeader('Referrer-Policy', 'no-referrer');
+  }
+  if (url.pathname.startsWith('/library/')) {
+    const manifest = path.join(ROOT, 'private', 'local-library.json');
+    if (!fs.existsSync(manifest)) return sendError(res, 503, 'library_not_configured', 'Local library is not configured.');
+    localLibraryApi ??= require('./lib/local-library').library(JSON.parse(fs.readFileSync(manifest, 'utf8')), loadConfig(ROOT).hasApiKey);
+    return localLibraryApi(req, res);
+  }
   if (url.pathname === '/reports.html' || url.pathname.startsWith('/api/reports/')) {
     req.reportActorSessionId = reportSessionId(req, res);
   }
