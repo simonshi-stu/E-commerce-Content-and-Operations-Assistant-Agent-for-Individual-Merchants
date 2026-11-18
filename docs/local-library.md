@@ -39,6 +39,20 @@ no-video-input tariff reviewed 2026-11-02. This is not a spending ceiling or a
 settled bill. The cumulative figure sums quotes in this ledger, not account
 charges. `completion_tokens` is reported only if returned by a status query.
 
+### Gallery
+
+The companion root opens the video gallery. `#projects` groups indexed videos
+by local project folder and `#ranking` compares the product evidence. The
+original list remains at `/library.html`. The main application's video page
+links to `/atelier.html`; existing production workers are not involved.
+
+For thumbnail previews, run `node scripts/library-covers.js` locally with
+ffmpeg and ffprobe on PATH before starting the companion. It reads only
+manifest-listed media and stores JPEG previews plus duration metadata under
+`private/library-covers/`. The HTTP API takes an asset ID, not an input path.
+Missing covers do not disable access to the original file. Optional manifest
+fields `title` and `displayOrder` control captions and curated ordering.
+
 The confirmed quote and submission-unknown placeholder commit together before
 the single create call. Identical payloads cannot be resubmitted in this
 ledger. An ambiguous result blocks further creates; retain the ledger and use

@@ -451,7 +451,7 @@ async function handleRequest(req, res) {
     videoStudio ??= require('./lib/video-orders').liveStudio(ROOT);
     return videoStudio(req,res);
   }
-  if (url.pathname === '/library.html') {
+  if (url.pathname === '/library.html' || url.pathname === '/atelier.html') {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Content-Security-Policy', "default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'none'");
     res.setHeader('Referrer-Policy', 'no-referrer');

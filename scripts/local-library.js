@@ -8,6 +8,9 @@ const config = JSON.parse(fs.readFileSync(path.join(root,'private','local-librar
 const api = library(config, localAdapter(root));
 const studio = require('../lib/video-orders').liveStudio(root);
 const pages = new Map([['/',['library.html','text/html']],['/library.js',['library.js','text/javascript']],['/library.css',['library.css','text/css']]]);
+pages.set('/library.html',['library.html','text/html']);
+pages.set('/',['atelier.html','text/html']);
+for(const [ext,type] of [['html','text/html'],['css','text/css'],['js','text/javascript']])pages.set('/atelier.'+ext,['atelier.'+ext,type]);
 const server = http.createServer(async (req,res) => {
   try {
     if (req.url.startsWith('/studio/')) return await studio(req,res);
