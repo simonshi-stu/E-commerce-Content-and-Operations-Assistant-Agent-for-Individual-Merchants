@@ -457,11 +457,10 @@ async function handleRequest(req, res) {
     res.setHeader('Referrer-Policy', 'no-referrer');
   }
   if (url.pathname.startsWith('/library/')) {
-    const manifest = path.join(ROOT, 'private', 'local-library.json');
-    if (!fs.existsSync(manifest)) return sendError(res, 503, 'library_not_configured', 'Local library is not configured.');
-    localLibraryApi ??= require('./lib/local-library').library(JSON.parse(fs.readFileSync(manifest, 'utf8')), require('./lib/ark-video-status').localAdapter(ROOT));
+    localLibraryApi ??= require('./lib/local-library').library(require('./lib/story-selection').loadSelection(ROOT), require('./lib/ark-video-status').localAdapter(ROOT));
     return localLibraryApi(req, res);
   }
+  if(url.pathname==='/library.html'){res.writeHead(302,{Location:'/atelier.html'});return res.end();}
   if (url.pathname === '/reports.html' || url.pathname.startsWith('/api/reports/')) {
     req.reportActorSessionId = reportSessionId(req, res);
   }

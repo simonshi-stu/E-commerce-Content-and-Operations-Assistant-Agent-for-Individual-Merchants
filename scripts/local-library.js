@@ -4,11 +4,11 @@ const path = require('node:path'), fs = require('node:fs'), http = require('node
 const {library} = require('../lib/local-library');
 const {localAdapter} = require('../lib/ark-video-status');
 const root = path.resolve(__dirname,'..');
-const config = JSON.parse(fs.readFileSync(path.join(root,'private','local-library.json'),'utf8'));
+const config = require('../lib/story-selection').loadSelection(root);
 const api = library(config, localAdapter(root));
 const studio = require('../lib/video-orders').liveStudio(root);
 const pages = new Map([['/',['library.html','text/html']],['/library.js',['library.js','text/javascript']],['/library.css',['library.css','text/css']]]);
-pages.set('/library.html',['library.html','text/html']);
+pages.set('/library.html',['atelier.html','text/html']);
 pages.set('/',['atelier.html','text/html']);
 for(const [ext,type] of [['html','text/html'],['css','text/css'],['js','text/javascript']])pages.set('/atelier.'+ext,['atelier.'+ext,type]);
 const server = http.createServer(async (req,res) => {
