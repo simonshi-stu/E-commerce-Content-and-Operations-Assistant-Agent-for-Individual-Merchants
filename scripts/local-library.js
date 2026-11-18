@@ -2,10 +2,10 @@
 // Read-only companion entry point; does not initialize any production worker.
 const path = require('node:path'), fs = require('node:fs'), http = require('node:http');
 const {library} = require('../lib/local-library');
-const {loadConfig} = require('../lib/env');
+const {localAdapter} = require('../lib/ark-video-status');
 const root = path.resolve(__dirname,'..');
 const config = JSON.parse(fs.readFileSync(path.join(root,'private','local-library.json'),'utf8'));
-const api = library(config, loadConfig(root).hasApiKey);
+const api = library(config, localAdapter(root));
 const pages = new Map([['/',['library.html','text/html']],['/library.js',['library.js','text/javascript']],['/library.css',['library.css','text/css']]]);
 const server = http.createServer(async (req,res) => {
   try {

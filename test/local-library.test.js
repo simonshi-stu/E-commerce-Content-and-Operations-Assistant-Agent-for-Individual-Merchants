@@ -16,13 +16,13 @@ test('local library serves only catalogued media and gates folder requests', asy
   fs.symlinkSync(other,path.join(root,'linked'),'junction');
   fs.writeFileSync(path.join(root,'invalid.mp4'),'not a media file');
   const opened=[];
-  const api=library({roots:{fixture:root},entries:['clip.mp4','absent.mp4','linked/clip.mp4','invalid.mp4'].map(file=>({root:'fixture',file,task:'mock-local-job'}))},true,async file=>opened.push(file));
+  const api=library({roots:{fixture:root},entries:['clip.mp4','absent.mp4','linked/clip.mp4','invalid.mp4'].map(file=>({root:'fixture',file,task:'mock-local-job'}))},{info:{configured:false}},async file=>opened.push(file));
   const server=http.createServer(api);
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   t.after(()=>{server.closeAllConnections();return new Promise(r=>server.close(r));});
   const base=`http://127.0.0.1:${server.address().port}`;
-  const {rows,configured,token}=await (await fetch(base+'/library/catalog')).json();
-  assert.equal(configured,true);assert.deepEqual(rows.map(r=>r.available),[true,false,false,false]);
+  const {rows,ark,token}=await (await fetch(base+'/library/catalog')).json();
+  assert.equal(ark.configured,false);assert.deepEqual(rows.map(r=>r.available),[true,false,false,false]);
   const asset=base+'/library/'+rows[0].id+'/';
   const partial=await fetch(asset+'view',{headers:{Range:'bytes=4-7'}});
   assert.equal(partial.status,206);assert.equal(await partial.text(),'ftyp');
@@ -35,4 +35,28 @@ test('local library serves only catalogued media and gates folder requests', asy
   assert.deepEqual(opened,[path.join(root,'clip.mp4')]);
   for(const row of rows.slice(1)) assert.equal((await fetch(base+'/library/'+row.id+'/view')).status,404);
   assert.equal((await fetch(base+'/library/unknown/view')).status,404);
+});
+
+test('verified media receipt binds the status lookup, not client input', async t => {
+  const dir=fs.mkdtempSync(path.resolve(__dirname,'../tmp/library-status-'));
+  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+  const bytes=Buffer.from('000000186674797069736f6d','hex');
+  fs.writeFileSync(path.join(dir,'A-original.mp4'),bytes);
+  const receipt=path.join(dir,'A-download.json'),task='fixture-a';
+  const data={bytes:bytes.length,sha256:require('node:crypto').createHash('sha256').update(bytes).digest('hex'),task_id:task};
+  fs.writeFileSync(receipt,JSON.stringify(data));
+  const calls=[];
+  const api=library({roots:{local:dir},entries:[{file:'A-original.mp4',root:'local',task}]},
+    {info:{configured:true}, async status(id){calls.push(id);return {state:'running'};}});
+  const server=http.createServer(api);
+  await new Promise(r=>server.listen(0,'127.0.0.1',r));
+  t.after(()=>{server.closeAllConnections();return new Promise(r=>server.close(r));});
+  const base=`http://127.0.0.1:${server.address().port}`;
+  const {rows,token}=await (await fetch(base+'/library/catalog')).json();
+  const url=base+'/library/'+rows[0].id+'/status', options={method:'POST',headers:{origin:base,'x-library-token':token}};
+  assert.equal((await fetch(url+'?task=other',options)).status,404);
+  assert.equal((await fetch(url,options)).status,200);
+  fs.writeFileSync(receipt,JSON.stringify({...data,sha256:'invalid'}));
+  assert.equal((await fetch(url,options)).status,403);
+  assert.deepEqual(calls,[task]);
 });

@@ -1,4 +1,10 @@
 <!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>本地作品库</title><link rel="stylesheet" href="/library.css">
 <main><header><small>商品工作台 / 本地交付</small><h1>作品与素材库</h1><p id="summary" role="status">正在读取本机索引…</p></header>
+<nav><button id="showLibrary">作品库</button> <button id="showRanking">商品榜单</button></nav>
+<div id="ranking" hidden><h2>本地商品榜</h2>
+<p>按可用索引文件计数，不按销量排名。仅标为「核验成片」的文件计入成片；预览与过程片段不计入。任务按已核对回执编号去重。数值相同按商品名排序，不共享名次。</p>
+<label>筛选商品<input type="search" id="rankQuery"></label><label>排序<select id="sort"><option value="final">核验成片数</option><option value="assets">素材数</option><option value="tasks">已核对任务数</option><option value="time">最近文件更新</option></select></label>
+<div style="overflow:auto"><table><thead><tr><th>名次</th><th>商品 / 关联作品</th><th>成片</th><th>素材</th><th>任务</th><th>最近更新</th><th>价格区间</th><th>周期销量</th><th>周期 GMV</th><th>累计销量</th><th>店铺</th></tr></thead><tbody id="rankRows"></tbody></table></div><p>— 表示无已核验商业数据；未推断价格、销量、GMV 或店铺。</p>
+<button id="prev">上一页</button> <span id="page"></span> <button id="next">下一页</button></div>
 <section aria-label="筛选"><label>搜索作品、目录或任务<input id="query" type="search"></label><label>商品<select id="product"></select></label><label>类型<select id="kind"></select></label><label>文件状态<select id="available"><option value="">全部</option><option value="yes">可用</option><option value="no">缺失或不可读</option></select></label></section>
 <div class="layout"><article><h2 id="count">记录</h2><div id="list"></div></article><aside><h2>预览与交付</h2><div id="detail">选择左侧记录查看关联和本地位置。</div></aside></div></main><script defer src="/library.js"></script></html>

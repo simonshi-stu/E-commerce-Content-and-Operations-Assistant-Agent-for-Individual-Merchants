@@ -14,5 +14,12 @@ the manifest. Do not put credentials, provider responses, or prompts in it.
 
 Preview and download support MP4, JPEG and PNG. Opening a file uses a browser
 media tab. On Windows the separate folder action asks Explorer to open its
-parent directory. The credential indicator describes the existing text
-provider configuration only; it does not verify an account or submit work.
+parent directory. Both entry points use the same Ark video status adapter.
+Configuration presence and protocol model names are not proof of connectivity.
+Only an explicit status lookup on a file with a matching download receipt,
+task ID, byte count and digest can send one authenticated GET. No create,
+retry or media retrieval operation is exposed.
+
+Product rankings aggregate available catalog files by product, separately
+counting the verified-final and asset categories and distinct receipt-bound
+tasks. Commercial columns remain unknown without verified commercial data.

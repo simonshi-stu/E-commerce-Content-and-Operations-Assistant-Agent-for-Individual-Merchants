@@ -454,7 +454,7 @@ async function handleRequest(req, res) {
   if (url.pathname.startsWith('/library/')) {
     const manifest = path.join(ROOT, 'private', 'local-library.json');
     if (!fs.existsSync(manifest)) return sendError(res, 503, 'library_not_configured', 'Local library is not configured.');
-    localLibraryApi ??= require('./lib/local-library').library(JSON.parse(fs.readFileSync(manifest, 'utf8')), loadConfig(ROOT).hasApiKey);
+    localLibraryApi ??= require('./lib/local-library').library(JSON.parse(fs.readFileSync(manifest, 'utf8')), require('./lib/ark-video-status').localAdapter(ROOT));
     return localLibraryApi(req, res);
   }
   if (url.pathname === '/reports.html' || url.pathname.startsWith('/api/reports/')) {
