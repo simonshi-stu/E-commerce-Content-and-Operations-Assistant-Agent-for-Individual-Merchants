@@ -1,0 +1,5 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>逐单视频生成</title><link rel="stylesheet" href="/studio/style.css">
+<main><header><small>视频工作台 / 单次授权</small><h1>新建视频生成</h1><p id="mode"></p></header>
+<section><label>发送给 Ark 的文本（不会附加商品图或其他资料）<textarea id="prompt" maxlength="1500" rows="4"></textarea></label><label>时长（4–15 秒）<input id="seconds" type="number" min="4" max="15" value="5"></label><p>Seedance 2.0 · 480p · 9:16 · 无音频 · 每单 1 条</p><button id="estimate">查看报价，不提交</button></section>
+<article id="offer" hidden><h2>核对本单</h2><pre id="spec"></pre><p id="price"></p><p>依据：方舟模型价格，2026-11-02 本地复核。无视频输入：时长 × 496 × 864 × 24 ÷ 1024，按 ¥46 / 百万 token，本单预估向上取整至分。不是扣款上限。成功响应的历史 usage 可折算参考费用，不等于结算账单。</p><label><input type="checkbox" id="consent">我已核对文本、参数和报价，授权这一单可能产生费用</label><button id="pay" disabled>确认本单并提交</button><button id="cancel">取消报价</button></article>
+<p id="message" role="status"></p><h2>本机独立订单</h2><p>提交未知表示可能已扣费；禁止重试，请人工核对供应商账单。这里只列本工作台订单。</p><div id="history"></div><video id="player" controls hidden></video></main><script defer src="/studio/app.js"></script></html>

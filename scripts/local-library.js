@@ -6,9 +6,11 @@ const {localAdapter} = require('../lib/ark-video-status');
 const root = path.resolve(__dirname,'..');
 const config = JSON.parse(fs.readFileSync(path.join(root,'private','local-library.json'),'utf8'));
 const api = library(config, localAdapter(root));
+const studio = require('../lib/video-orders').liveStudio(root);
 const pages = new Map([['/',['library.html','text/html']],['/library.js',['library.js','text/javascript']],['/library.css',['library.css','text/css']]]);
 const server = http.createServer(async (req,res) => {
   try {
+    if (req.url.startsWith('/studio/')) return await studio(req,res);
     if (!pages.has(req.url)) return await api(req,res);
     if (req.headers.host !== `127.0.0.1:${req.socket.localPort}` || req.method !== 'GET') {res.writeHead(403); return res.end();}
     const [name,mime] = pages.get(req.url);

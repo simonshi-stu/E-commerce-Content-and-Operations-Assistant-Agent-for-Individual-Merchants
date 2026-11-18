@@ -4,7 +4,8 @@
   const el = id => document.getElementById(id);
   const response = await fetch('/library/catalog');
   if (!response.ok) throw Error();
-  const {rows,token,ark} = await response.json();
+  const {rows,token,ark,studio} = await response.json();
+  if(studio){const a=document.createElement('a');a.href='/studio/';a.textContent='新建视频生成';el('showRanking').after(a);}
   rows.sort((a,b) => (b.updated||'').localeCompare(a.updated||''));
   el('summary').textContent = ark ? `Ark 视频密钥${ark.configured?'已配置':'未配置'}（服务端读取于 ${ark.configAt}，非连通验证）。协议模型：${ark.protocolModels.join('、')}；不提交生成任务。` : '旧版服务 · 视频配置未知';
   for (const key of ['product','kind']) for (const v of ['',...new Set(rows.map(r=>r[key]))]) el(key).add(new Option(v||'全部',v));

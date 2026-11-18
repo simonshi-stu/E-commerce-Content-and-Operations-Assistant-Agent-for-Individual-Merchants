@@ -424,6 +424,7 @@ async function handleReportJobs(req, res, url) {
 }
 
 let localLibraryApi;
+let videoStudio;
 const server = http.createServer((req, res) => {
   req.on('error', () => {});
   res.on('error', () => {});
@@ -446,6 +447,10 @@ server.on('clientError', (error, socket) => {
 
 async function handleRequest(req, res) {
   const url = new URL(req.url, 'http://localhost');
+  if (url.pathname.startsWith('/studio/')) {
+    videoStudio ??= require('./lib/video-orders').liveStudio(ROOT);
+    return videoStudio(req,res);
+  }
   if (url.pathname === '/library.html') {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Content-Security-Policy', "default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'none'");

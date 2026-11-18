@@ -23,3 +23,26 @@ retry or media retrieval operation is exposed.
 Product rankings aggregate available catalog files by product, separately
 counting the verified-final and asset categories and distinct receipt-bound
 tasks. Commercial columns remain unknown without verified commercial data.
+
+### New, individually authorized video orders
+
+`/studio/` is separate from the read-only catalog. It uses its own SQLite
+ledger and never imports old tasks or budget grants. Use Node with built-in
+`node:sqlite`. An estimate sends nothing to Ark. The user reviews one text-only
+payload, selects the unchecked consent box and confirms that quote within two
+minutes. Changing the prompt or duration invalidates the offer.
+
+Only Seedance 2.0, 480p portrait, 4–15 seconds, no audio is offered. Estimate:
+seconds × 496 × 864 × 24 / 1024 tokens at CNY 46 per million, rounded **up**
+to cents. Source: [Ark model pricing](https://www.volcengine.com/docs/ark/model-pricing),
+no-video-input tariff reviewed 2026-11-02. This is not a spending ceiling or a
+settled bill. The cumulative figure sums quotes in this ledger, not account
+charges. `completion_tokens` is reported only if returned by a status query.
+
+The confirmed quote and submission-unknown placeholder commit together before
+the single create call. Identical payloads cannot be resubmitted in this
+ledger. An ambiguous result blocks further creates; retain the ledger and use
+the local order ID and timestamp for manual reconciliation. Do not clear it
+or change the prompt to retry. Status and result retrieval are manual actions;
+only the order's bound task is queried. Result downloads accept HTTPS provider
+media, no redirects, MP4 only, up to 128 MiB, without a bearer token.
