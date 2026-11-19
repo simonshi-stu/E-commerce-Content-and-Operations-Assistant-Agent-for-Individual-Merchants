@@ -1,0 +1,30 @@
+'use strict';
+// Optional browser QA. Install Playwright+Chromium in your test environment first.
+// Start the isolated demo server separately; this script never opens the application server.
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs/promises');
+const target=new URL(process.env.MERCHANT_DEMO_URL || 'http://127.0.0.1:4178/');
+if(target.hostname!=='127.0.0.1'||target.protocol!=='http:')throw Error('Only a loopback demo URL is accepted');
+(async()=>{const browser=await chromium.launch({...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{}),headless:true});
+try{const ctx=await browser.newContext({viewport:{width:1280,height:850},acceptDownloads:true});const external=[],errors=[];
+await ctx.route(/^https?:/,r=>{if(new URL(r.request().url()).origin!==target.origin){external.push(r.request().url());return r.abort();}return r.continue();});
+const p=await ctx.newPage();p.on('pageerror',e=>errors.push(e.message));const $=id=>p.locator('#'+id);
+await p.goto(target.href);await $('example-instruction').click();await $('draft-shot').click();assert.match(await $('shot-errors').innerText(),/上一段/);
+await $('use-sample').click();await p.waitForFunction(()=>document.querySelectorAll('#assets article').length===2);await $('use-sample').click();await p.waitForFunction(()=>document.getElementById('import-note').textContent.includes('重复'));
+const spec={name:'PRIVATE-front.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jAWUAAAAASUVORK5CYII=','base64')};
+await $('file-picker').setInputFiles(spec);await p.waitForFunction(()=>document.querySelectorAll('#assets article').length===3);
+await $('file-picker').setInputFiles({...spec,name:'PRIVATE-copy.png'});await p.waitForFunction(()=>document.getElementById('import-note').textContent.includes('重复 1'));
+await $('example-instruction').click();await $('draft-shot').click();assert.equal(await $('shot-action').inputValue(),'看价签拿梨');assert.equal(await $('shot-duration').inputValue(),'6');assert.match(await $('shot-character').inputValue(),/01/);
+assert.equal(await $('shot-aspect').inputValue(),'9:16');assert.equal(await $('shot-avoid').isChecked(),true);
+await p.locator('#prefs summary').click();await $('shot-duration').fill('8');await $('preference-scope').selectOption('sku');await $('save-preferences').click();
+await $('instruction').fill('展示镜腿，跟上一段同一个人。');await $('draft-shot').click();assert.equal(await $('shot-duration').inputValue(),'8');
+await $('example-instruction').click();await $('draft-shot').click();assert.equal(await $('shot-duration').inputValue(),'6');
+await $('submit-mock').click();await p.waitForFunction(()=>['queued','running'].includes(document.querySelector('#job-status').dataset.state));
+await p.reload();await p.waitForFunction(()=>[...document.querySelectorAll('#assets article')].some(el=>el.textContent.includes('PRIVATE-front.png')&&el.textContent.includes('正面')));await p.waitForFunction(()=>document.getElementById('job-status').dataset.state==='succeeded');
+await p.locator('#mock-video').evaluate(async v=>{v.muted=true;await v.play();});
+assert.ok(await p.locator('#mock-video').evaluate(v=>v.videoWidth>0&&v.videoHeight>0));
+const d=p.waitForEvent('download');await $('download-archive').click();const downloadable=await d;const archive=JSON.parse(await fs.readFile(await downloadable.path(),'utf8'));assert.equal(archive.simulated,true);assert.equal(archive.chargeMinor,0);
+assert.doesNotMatch(JSON.stringify(archive),/PRIVATE|DEMO-001|看价签|SECRET|Bearer/);
+await p.setViewportSize({width:390,height:844});assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+await $('clear-local').click();await p.waitForFunction(()=>document.getElementById('archive-note').textContent.includes('已清除'));await p.reload();assert.equal(await p.locator('#assets article').count(),0);
+assert.deepEqual(errors,[]);assert.deepEqual(external,[]);console.log('PASS: sample + imported duplicate, verified missing previous reference, one sentence, override precedence, resume after reload, MP4 playback, sanitized archive, mobile layout, zero third-party HTTP requests.');
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start": "node server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "demo:merchant": "node scripts/mock-demo-server.js"
   },
   "dependencies": {
     "busboy": "^1.6.0",
